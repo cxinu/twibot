@@ -1,0 +1,5 @@
+split,n_users,n_labeled,n_bots,n_humans,bot_ratio
+train,8278,8278,4646,3632,0.5612
+dev,2365,2365,1303,1062,0.551
+test,1183,1183,640,543,0.541
+support,217754,0,0,0,0.0

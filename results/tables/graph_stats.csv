@@ -1,0 +1,2 @@
+n_nodes,n_edges,n_follow_edges,n_following_edges,density,avg_degree,max_degree,n_isolated,p_isolated
+229580,226111,110869,117110,8.579964184554846e-06,1.969779597525917,139,23850,0.10388535586723582

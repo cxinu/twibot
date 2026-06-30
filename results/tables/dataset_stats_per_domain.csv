@@ -1,0 +1,13 @@
+split,domain,n_users,bot_rate
+dev,business,570,0.5596
+dev,entertainment,565,0.5752
+dev,politics,647,0.3555
+dev,sports,583,0.7358
+test,business,293,0.5188
+test,entertainment,280,0.5571
+test,politics,343,0.4052
+test,sports,267,0.7228
+train,business,2007,0.5536
+train,entertainment,1986,0.5972
+train,politics,2270,0.3775
+train,sports,2015,0.7404

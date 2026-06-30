@@ -1,0 +1,5 @@
+domain,n_test,bot_rate,global_f1,per_domain_f1,domain_rel_f1,domain_conditioned_f1
+business,293,0.5188,0.8251,0.8193,0.7332,0.7409
+entertainment,280,0.5571,0.8251,0.8134,0.7237,0.717
+politics,343,0.4052,0.8251,0.8436,0.7773,0.7691
+sports,267,0.7228,0.8251,0.7747,0.6919,0.681
