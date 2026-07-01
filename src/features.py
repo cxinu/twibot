@@ -102,7 +102,8 @@ def main():
 
     print("Preparing profile features (log1p on count-based)...")
     count_cols = ["followers_count", "friends_count", "listed_count",
-                  "favourites_count", "statuses_count", "account_age_days"]
+                  "favourites_count", "statuses_count", "account_age_days",
+                  "description_length", "screen_name_length", "name_length"]
     profile_array = df[PROFILE_FEATURES].values.astype(np.float32)
     for ci, col in enumerate(PROFILE_FEATURES):
         if col in count_cols:
@@ -110,8 +111,8 @@ def main():
 
     print("Preparing tweet features...")
     tweet_array = df[TWEET_FEATURES].values.astype(np.float32)
-    tweet_count_cols = ["hashtag_count", "url_count", "mention_count",
-                        "retweet_count", "num_numeric", "num_special_chars"]
+    tweet_count_cols = ["tweet_count", "avg_tweet_length", "hashtag_count", "url_count",
+                        "mention_count", "retweet_count", "num_numeric", "num_special_chars"]
     for ci, col in enumerate(TWEET_FEATURES):
         if col in tweet_count_cols:
             tweet_array[:, ci] = np.log1p(np.clip(tweet_array[:, ci], 0, None))

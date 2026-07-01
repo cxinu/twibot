@@ -299,6 +299,19 @@ def main():
     for group in ["profile", "tweet", "topology", "neighbour_attr"]:
         feats[group] = np.load(os.path.join(FEATURE_DIR, f"features_{group}.npy"))
 
+    # Standardise features using training-set statistics (critical for neural nets
+    # — raw community_id ranges 0–24296 and destroys linear-layer gradients)
+    def standardise(arr):
+        mu = np.mean(arr[data.train_mask.cpu().numpy()], axis=0, keepdims=True)
+        sd = np.std(arr[data.train_mask.cpu().numpy()], axis=0, keepdims=True)
+        sd = np.where(sd < 1e-10, 1.0, sd)
+        return (arr - mu) / sd
+
+    feats["profile"] = standardise(feats["profile"])
+    feats["tweet"] = standardise(feats["tweet"])
+    feats["topology"] = standardise(feats["topology"])
+    feats["neighbour_attr"] = standardise(feats["neighbour_attr"])
+
     x_profile = torch.tensor(feats["profile"], dtype=torch.float)
     profile_dim = x_profile.size(1)
 

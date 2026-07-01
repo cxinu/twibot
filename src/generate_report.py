@@ -40,9 +40,16 @@ def main():
     rf_all_auc = float(rf_all["auc"].values[0]) if len(rf_all) > 0 else 0
     rf_all_nolp_auc = float(rf_all_nolp["auc"].values[0]) if len(rf_all_nolp) > 0 else 0
 
+    rf_profile_tweet_f1 = float(rf_profile_tweet["f1_macro"].values[0]) if len(rf_profile_tweet) > 0 else 0
+    rf_profile_tweet_topo_f1 = float(rf_profile_tweet_topo["f1_macro"].values[0]) if len(rf_profile_tweet_topo) > 0 else 0
+    rf_profile_tweet_topo_attr_f1 = float(rf_profile_tweet_topo_attr["f1_macro"].values[0]) if len(rf_profile_tweet_topo_attr) > 0 else 0
+
     f1_gain = rf_all_f1 - rf_profile_f1
-    f1_lp_contribution = rf_all_f1 - rf_all_nolp_f1
-    f1_topology_attr = f1_gain - f1_lp_contribution
+    f1_lp_contribution = rf_all_f1 - rf_all_nolp_f1  # Δ from adding label_prop to the 4-group stack
+    f1_tweet_gain = rf_profile_tweet_f1 - rf_profile_f1
+    f1_topo_impact = rf_profile_tweet_topo_f1 - rf_profile_tweet_f1
+    f1_attr_impact = rf_profile_tweet_topo_attr_f1 - rf_profile_tweet_topo_f1
+    f1_structure_impact = f1_topo_impact + f1_attr_impact  # topology + attr-smooth combined
 
     # McNemar results
     sig_profile_vs_all = ""
@@ -88,7 +95,7 @@ def main():
     L("")
     L("This study investigates whether neighbourhood structure improves bot detection on the TwiBot-20 dataset and whether the effect varies by domain. We decompose neighbourhood information into four distinct mechanisms — pure topology, attribute-smoothing (neighbour profile averages), label propagation (neighbour bot rate), and learned message passing (Graph Neural Networks) — and evaluate each separately using a Random Forest ablation ladder. Our results show that neighbourhood information provides a modest but statistically significant improvement over profile-only features (F1 macro: from "
       f"{rf_profile_f1:.4f} to {rf_all_f1:.4f}, {sig_profile_vs_all}). "
-      f"However, label propagation contributes essentially nothing ({f1_lp_contribution:+.4f} F1), and the entire gain comes from tweet content and attribute-smoothing, not topology. "
+      f"However, the entire gain comes from tweet content (+{f1_tweet_gain:.4f} F1). Topology ({f1_topo_impact:+.4f}), attribute-smoothing ({f1_attr_impact:+.4f}), and label propagation ({f1_lp_contribution:+.4f}) contribute essentially nothing in aggregate. "
       "GNNs underperform RF baselines across all configurations, suggesting that the TwiBot-20 graph is too sparse (avg. degree < 2) for message passing to extract meaningful structure beyond what shallow features capture.")
     L("")
 
@@ -122,6 +129,10 @@ def main():
               f"{row['bot_ratio']*100:.1f}% bot rate)")
         L("")
         L(f"Per-domain training set bot rates: {base_rates_str}")
+    L("")
+    L("")
+    L("![Dataset Overview](results/figures/fig_dataset_overview.png)")
+    L("*Figure 0: Label distribution across train/dev/test splits.*")
     L("")
     L("Critical caveats about this dataset:")
     L("1. **Neighbour lists are sampled**, not the full graph — each user has at most 20 followers and 20 followings. The resulting graph has only ~227K edges for 230K nodes (avg. degree < 2), compared to ~28M edges in Cresci-2017 (avg. degree > 60).")
@@ -183,6 +194,9 @@ def main():
     L(f"- Neighbour-attribute features add a small increment (F1={rf_profile_tweet_topo_attr['f1_macro'].values[0]:.4f}).")
     L(f"- The full model (including label propagation) achieves F1={rf_all_f1:.4f}, essentially identical to the model without label propagation.")
     L("")
+    L("![RF Ablation Ladder](results/figures/fig_main_comparison.png)")
+    L("*Figure 1: Overall F1 Macro and AUC across all configurations. Colour coding: baseline (grey), profile (teal), tweet (yellow), topology (green), neighbour-attribute (orange), label-propagation (purple), GNN (red).*")
+    L("")
 
     H(2, "4.3 GNN Training")
     L("")
@@ -197,7 +211,10 @@ def main():
         for _, row in main_gnn.iterrows():
             L(f"| {row['config']} | {row['f1_macro_mean']:.4f} ± {row['f1_macro_std']:.4f} | {row['auc_mean']:.4f} ± {row['auc_std']:.4f} |")
         L("")
-    L(f"The best GNN configuration is {gnn_best_name} (F1={gnn_best_f1:.4f}), which still underperforms the RF ablation's best (F1={rf_all_f1:.4f}). All GNN variants perform at or below the MLP controls, suggesting that message passing on this sparse graph does not extract meaningful structure beyond what a feedforward network can capture.")
+    L(f"The best GNN configuration is {gnn_best_name} (F1={gnn_best_f1:.4f}), close to the RF ablation's best (F1={rf_all_f1:.4f}). MLP-All (F1=0.8240) achieves comparable performance to RF-All (F1=0.8267), suggesting that after proper feature standardization, the gap between neural and tree-based models is narrow. However, graph-convolutional variants (SAGE-All: 0.8189, RelSAGE-All: 0.8136, DomainRelSAGE-All: 0.8223) do not outperform the plain MLP control, confirming that message passing on this sparse graph does not extract meaningful structure beyond what a feedforward network can capture.")
+    L("")
+    L("![Feature Importance](results/figures/fig_rf_feature_importance.png)")
+    L("*Figure 2: Top-20 feature importances for RF-All. Color indicates feature group. Tweet-level features dominate the top ranks.*")
     L("")
 
     H(1, "5. Results")
@@ -207,12 +224,17 @@ def main():
     L("")
     L(f"The headline comparison is **RF-Profile (F1={rf_profile_f1:.4f}) vs RF-All (F1={rf_all_f1:.4f})**.")
     L("")
-    L(f"Neighbourhood structure improves F1 macro by **+{f1_gain:.4f}** ({sig_profile_vs_all}).")
-    L(f"However, label propagation alone contributes **{f1_lp_contribution:+.4f}** (RF-All vs RF-All-minus-LabelProp, {sig_all_vs_nolp}), "
-      f"meaning the entire observed gain comes from tweets, topology, and attribute-smoothing combined (**+{rf_profile_tweet['f1_macro'].values[0] - rf_profile_f1:.4f}** from tweets, **+{f1_topology_attr:.4f}** from topology+attr-smoothing). "
-      "Label propagation (`neighbour_bot_rate`) is essentially uninformative on this sparse graph.")
+    L(f"The total gain from adding all features is **+{f1_gain:.4f}** ({sig_profile_vs_all}). Decomposing this gain:")
+    L(f"- Adding **tweet features** accounts for **+{f1_tweet_gain:.4f}** (RF-Profile → RF-Profile+Tweet: {rf_profile_f1:.4f} → {rf_profile_tweet_f1:.4f}).")
+    L(f"- Adding **topology** further changes F1 by **{f1_topo_impact:+.4f}** (RF-Profile+Tweet → +Topology: {rf_profile_tweet_f1:.4f} → {rf_profile_tweet_topo_f1:.4f}).")
+    L(f"- Adding **neighbour-attribute** features further changes F1 by **{f1_attr_impact:+.4f}** (+Topology → +NeighbourAttr).")
+    L(f"- Adding **label propagation** changes F1 by **{f1_lp_contribution:+.4f}** (RF-All-minus-LabelProp → RF-All, {sig_all_vs_nolp}).")
     L("")
-    L("**Conclusion for RQ1**: Neighbourhood structure provides a modest but statistically significant improvement. However, the improvement is driven by tweet content and attribute-smoothing, not by pure graph topology or label propagation. The topology + attribute-smoothing contribution is small but non-zero.")
+    L("**The entire gain comes from tweet content (+{:.4f})**. Topology ({:+.4f}), attribute-smoothing ({:+.4f}), and label propagation ({:+.4f}) combined contribute **{:+.4f}** — essentially zero. "
+      "The 'neighbourhood improvement' claim is misleading: the improvement is driven by tweet-content features, not graph structure.".format(
+          f1_tweet_gain, f1_topo_impact, f1_attr_impact, f1_lp_contribution, f1_topo_impact + f1_attr_impact + f1_lp_contribution))
+    L("")
+    L("**Conclusion for RQ1**: The apparent 'neighbourhood improvement' is illusory — the entire gain comes from tweet content features (+{:.4f}). Topology ({:+.4f}), attribute-smoothing ({:+.4f}), and label propagation ({:+.4f}) provide no net benefit. On this sparse graph (avg. degree < 2), neighbourhood structure does not meaningfully improve bot detection.".format(f1_tweet_gain, f1_topo_impact, f1_attr_impact, f1_lp_contribution))
 
     L("")
     H(2, "5.2 RQ2: Does the Effect Vary by Domain?")
@@ -228,7 +250,10 @@ def main():
     L("**Politics** shows the largest base-rate skew (40.5% bot, the lowest), and the per-domain RF-All achieves the highest F1 (0.8455). Interestingly, label propagation hurts politics (Δ=−0.0116), suggesting that neighbour bot rate is not a reliable signal in this domain. **Sports** has the highest bot rate (72.3%) and the lowest per-domain F1 (0.7637). "
       "**Business** and **Entertainment** show moderate performance with small positive contributions from label propagation.")
     L("")
-    L("**Conclusion for RQ2**: The effect of neighbourhood structure does vary by domain, but the mechanism differs. In some domains (politics) topology helps slightly; in others (business) label propagation helps. No single mechanism dominates across all domains.")
+    L("![Per-Domain Feature Importances](results/figures/fig_domain_feature_importance.png)")
+    L("*Figure 3: Per-domain top-10 feature importances. The feature groups that dominate differ across domains — for example, tweet features are more important in politics than in sports.*")
+    L("")
+    L("**Conclusion for RQ2**: The effect varies by domain, but in every domain the combined contribution of neighbourhood mechanisms (topology + attr-smoothing + label-prop) is close to zero. The differences in per-domain F1 are driven primarily by base-rate skew and tweet-content features, not by differential effectiveness of graph structure.")
     L("")
 
     H(2, "5.3 Significance Testing")
@@ -257,7 +282,7 @@ def main():
     L("")
     H(2, "6.1 Why GNNs Underperform")
     L("")
-    L("The GNN results are surprising: even SAGE on profile-only features (0.7910) underperforms a simple MLP on the same features (0.8035). This suggests that the TwiBot-20 graph does not contain useful relational structure for the classification task. Several explanations:")
+    L("After fixing a feature-standardisation bug (community_id ranged 0–24K, destroying linear-layer gradients), GNN results are more coherent: MLP-All (0.8240) approaches RF-All (0.8267), and SAGE-Profile (0.8133) outperforms MLP-Profile (0.8063) on F1. However, graph-convolutional variants still do not beat the plain MLP when given the same features. Several explanations:")
     L("")
     L("1. **Graph sparsity**: With only 227K edges for 230K nodes (avg. degree = 1.97), the graph is extremely sparse. Typical graphs where GNNs excel (e.g., citation networks) have avg. degrees of 5-10+.")
     L("2. **Sampled neighbours are arbitrary**: A neighbour list of 20 random followers/followings is not a 'community' — it is a tiny, noisy sample of the user's full ego network. GNN message passing on such a graph is averaging over unrelated users.")
@@ -295,8 +320,8 @@ def main():
     L("")
     L("This study provides a decomposed analysis of neighbourhood structure in TwiBot-20 bot detection. Our key findings are:")
     L("")
-    L(f"1. Neighbourhood structure improves F1 macro from {rf_profile_f1:.4f} (profile-only) to {rf_all_f1:.4f} (full model), a gain of {f1_gain:.4f} (p < 0.05).")
-    L("2. The gain is NOT attributable to label propagation (which is essentially flat); instead it comes from tweet content and limited attribute-smoothing signal.")
+    L(f"1. The full model achieves F1={rf_all_f1:.4f} vs profile-only F1={rf_profile_f1:.4f}, a gain of +{f1_gain:.4f} (p < 0.05).")
+    L(f"2. This entire gain is attributable to tweet content (+{f1_tweet_gain:.4f}). Topology ({f1_topo_impact:+.4f}), attribute-smoothing ({f1_attr_impact:+.4f}), and label propagation ({f1_lp_contribution:+.4f}) provide no net benefit — their combined contribution is {f1_topo_impact + f1_attr_impact + f1_lp_contribution:+.4f}.")
     L("3. The effect of each mechanism varies substantially by domain: topology helps most in entertainment, label propagation helps in business.")
     L("4. GNNs underperform RF baselines on this sparse graph, suggesting that for TwiBot-20, shallow models with engineered features are more effective than learned message passing.")
     L("")
@@ -313,14 +338,16 @@ def main():
     L("- Per-domain confusion matrices reveal domain-specific error patterns.")
     L("")
 
-    H(1, "10. Appendix B: Additional Figures")
     L("")
-    L("- `results/figures/fig_dataset_overview.png`: Label distribution per split")
-    L("- `results/figures/fig_rf_feature_importance.png`: Top-20 features for RF-All, colour-coded by group")
-    L("- `results/figures/fig_domain_feature_importance.png`: Per-domain top-10 feature importances (2×2 grid)")
-    L("- `results/figures/fig_main_comparison.png`: Grouped bar chart of F1/AUC across all configurations")
-    L("- `results/figures/fig_bot_behavioural_profile.png`: Bot/human profile heatmaps per domain")
-    L("- `results/figures/fig_bot_human_diff_heatmap.png`: Bot-human difference by domain")
+    L("![Bot/Human Profile Heatmaps](results/figures/fig_bot_behavioural_profile.png)")
+    L("*Figure 4: Bot and human behavioural profiles per domain. Values are log1p-transformed medians.*")
+    L("")
+    L("![Bot-Human Differences](results/figures/fig_bot_human_diff_heatmap.png)")
+    L("*Figure 5: Bot-human difference heatmap. Positive values (red) indicate bots have higher values than humans in that domain; negative (blue) indicate the reverse.*")
+    L("")
+    H(1, "10. Appendix B: Confusion Matrices")
+    L("")
+    L("Confusion matrices for all configurations are saved in `results/figures/cm_*.png`.")
 
     L("")
     L("---")
