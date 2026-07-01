@@ -1,5 +1,0 @@
-domain,n_test,base_rate,f1_profile_tweet,f1_plus_topology,f1_plus_neighbour,f1_rf_all,f1_rf_all_minus_labelprop,delta_F1_topology,delta_F1_attr,delta_F1_labelprop
-business,293,0.5188,0.808,0.7903,0.8034,0.8071,0.8034,-0.0177,0.0131,0.0037
-entertainment,280,0.5571,0.81,0.806,0.8088,0.8094,0.8088,-0.004,0.0028,0.0006
-politics,343,0.4052,0.8639,0.849,0.8543,0.8545,0.8543,-0.0149,0.0052,0.0002
-sports,267,0.7228,0.77,0.7835,0.77,0.7676,0.77,0.0134,-0.0134,-0.0025
