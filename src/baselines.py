@@ -49,7 +49,7 @@ def save_confusion(y_true, y_pred, name):
 def main():
     os.makedirs(CONFUSION_DIR, exist_ok=True)
     print("Loading data...")
-    df = pd.read_parquet("dataset/twibot_df.parquet")
+    df = pd.read_parquet("data/twibot-20/twibot_df.parquet")
     train = df[df["split"] == "train"]
     test = df[df["split"] == "test"]
 

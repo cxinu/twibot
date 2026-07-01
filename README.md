@@ -4,7 +4,7 @@
 
 We investigate whether neighbourhood structure improves bot detection on TwiBot-20 and whether the effect varies by domain. We decompose 'neighbourhood' into four distinct mechanisms — pure topology (degree, PageRank, etc.), attribute-smoothing (neighbour profile averages), label propagation (neighbour bot rate), and learned message passing (graph neural networks) — and evaluate each using a Random Forest ablation ladder with McNemar significance tests at each step.
 
-The correct comparison for 'does neighbourhood help?' is RF-Profile+Tweet (F1=0.8288) vs RF-All (F1=0.8267), which adds topology, neighbour-attribute, and label-propagation features to a model that already has profile and tweet content. The result: adding all neighbourhood features changes F1 by **-0.0021** (no significance test available). Neither topology (-0.0053, p=0.4047), attribute-smoothing (+0.0026, p=0.7656), nor label propagation (+0.0006, p=1.0000) individually produce a statistically significant improvement over the preceding rung of the ladder.
+The correct comparison for 'does neighbourhood help?' is RF-Profile+Tweet (F1=0.8287) vs RF-All (F1=0.8259), which adds topology, neighbour-attribute, and label-propagation features to a model that already has profile and tweet content. The result: adding all neighbourhood features changes F1 by **-0.0028** (no significance test available). Neither topology (-0.0065, p=0.3239), attribute-smoothing (+0.0029, p=0.7604), nor label propagation (+0.0008, p=1.0000) individually produce a statistically significant improvement over the preceding rung of the ladder.
 
 Domain-conditioned models (DomainRelSAGE) also fail to outperform a plain MLP on the same input features, and per-domain mechanism decompositions show effect sizes within noise range given per-domain sample sizes (~270–340). We conclude that on the TwiBot-20 graph (avg. degree ≈ 2), neighbourhood structure does not meaningfully improve bot detection beyond strong profile and tweet-content baselines.
 
@@ -32,8 +32,6 @@ By isolating each mechanism, we can determine which aspect of neighbourhood stru
 
 
 **TwiBot-20 benchmark.** Feng et al. (2021) introduced TwiBot-20 and reported strong GNN performance using RGCN, with F1 scores > 0.90 on the test set. However, their evaluation protocol differs from ours: they construct the graph from the full retweet network and use a different feature set. Feng et al. (2022) revisited the dataset and found that neighbour-based features provide limited benefit relative to profile features, consistent with our findings.
-
-**Bot detection on other datasets.** Cresci-2017 (Cresci et al., 2017) contains ~14K users from five account classes with a retweet graph of ~1,400 edges, making it an even sparser graph than TwiBot-20. Most published results on Cresci-2017 rely primarily on user-level features rather than graph structure. The widely-cited 'F1 > 0.99' results on Cresci-2017 typically use the full feature set including crowdflower annotations and are not directly comparable to our feature-limited setup.
 
 **GNNs for social media.** Graph neural networks have shown promise on social network tasks when the graph is dense and edges are behaviourally meaningful (e.g., retweet networks, follow networks with high degree). On sampled neighbour lists — where each user observes at most 20 connections in each direction — message passing averages over largely unrelated users, and the theoretical advantage of GNNs over shallow models is minimal. Our results (MLP-All=0.8240 vs SAGE-All=0.8189) are consistent with this expectation.
 
@@ -88,7 +86,7 @@ neighbour_bot_rate: fraction of a user's labelled neighbours that are bots (trai
 | Config | F1 Macro | AUC | Precision | Recall |
 |--------|----------|-----|-----------|--------|
 | Baseline-Majority | 0.3511 | 0.5000 | 0.5410 | 1.0000 |
-| Baseline-LogReg | 0.8024 | 0.8608 | 0.7587 | 0.9578 |
+| Baseline-LogReg | 0.8032 | 0.8607 | 0.7590 | 0.9594 |
 
 Baseline-Majority (F1=0.3511) reflects the ~55.7% bot prevalence. Baseline-LogReg on raw profile counts (F1=0.8024) establishes the floor for 'good' performance.
 
@@ -99,20 +97,20 @@ Random Forest (500 trees, sqrt features, balanced class weight), 5-fold stratifi
 
 | Config | Features | F1 Macro | AUC |
 |--------|----------|----------|-----|
-| RF-Profile | — | 0.7982 | 0.8635 |
-| RF-Profile+Tweet | — | 0.8288 | 0.9012 |
-| RF-Profile+Tweet+Topology | — | 0.8235 | 0.8963 |
-| RF-Profile+Tweet+Topology+NeighbourAttr | — | 0.8261 | 0.9003 |
-| RF-All | — | 0.8267 | 0.8983 |
-| RF-All-minus-LabelProp | — | 0.8261 | 0.9003 |
+| RF-Profile | — | 0.7995 | 0.8636 |
+| RF-Profile+Tweet | — | 0.8287 | 0.9018 |
+| RF-Profile+Tweet+Topology | — | 0.8222 | 0.8961 |
+| RF-Profile+Tweet+Topology+NeighbourAttr | — | 0.8251 | 0.8998 |
+| RF-All | — | 0.8259 | 0.8981 |
+| RF-All-minus-LabelProp | — | 0.8251 | 0.8998 |
 
 Key observations:
-- Profile-only RF: F1=0.7982.
-- Adding tweets improves to 0.8288 (+0.0306) — tweet content carries signal.
-- Adding topology (holding tweets constant) changes F1 by -0.0053 (p=0.4047).
-- Adding neighbour-attribute features changes F1 by +0.0026 (p=0.7656).
-- Adding label propagation changes F1 by +0.0006 (p=1.0000).
-- **The total neighbourhood contribution (topo+attr+lp) is -0.0021 (no test) — essentially zero.**
+- Profile-only RF: F1=0.7995.
+- Adding tweets improves to 0.8287 (+0.0292) — tweet content carries signal.
+- Adding topology (holding tweets constant) changes F1 by -0.0065 (p=0.3239).
+- Adding neighbour-attribute features changes F1 by +0.0029 (p=0.7604).
+- Adding label propagation changes F1 by +0.0008 (p=1.0000).
+- **The total neighbourhood contribution (topo+attr+lp) is -0.0028 (no test) — essentially zero.**
 
 ![RF Ablation Ladder](results/figures/fig_main_comparison.png)
 *Figure 1: F1 Macro (left) and AUC (right) across all configurations. Colour: baseline (grey), profile (teal), tweet (yellow), topology (green), neighbour-attr (orange), label-prop (purple), GNN (red).*
@@ -127,14 +125,14 @@ Four GNN variants plus MLP controls, each with 3 random seeds [42, 123, 456]. Fu
 
 | Config | F1 Macro | AUC |
 |--------|----------|-----|
-| MLP-Profile | 0.8063 ± 0.0031 | 0.8666 ± 0.0011 |
-| SAGE-Profile | 0.8133 ± 0.0004 | 0.8920 ± 0.0005 |
-| MLP-All | 0.8240 ± 0.0028 | 0.9065 ± 0.0032 |
-| SAGE-All | 0.8189 ± 0.0042 | 0.9129 ± 0.0011 |
-| RelSAGE-All | 0.8136 ± 0.0058 | 0.9031 ± 0.0019 |
-| DomainRelSAGE-All | 0.8223 ± 0.0044 | 0.9027 ± 0.0011 |
+| MLP-Profile | 0.8060 ± 0.0035 | 0.8667 ± 0.0012 |
+| SAGE-Profile | 0.8144 ± 0.0013 | 0.8918 ± 0.0006 |
+| MLP-All | 0.8248 ± 0.0013 | 0.9050 ± 0.0020 |
+| SAGE-All | 0.8216 ± 0.0044 | 0.9121 ± 0.0012 |
+| RelSAGE-All | 0.8127 ± 0.0048 | 0.9033 ± 0.0016 |
+| DomainRelSAGE-All | 0.8215 ± 0.0049 | 0.9024 ± 0.0010 |
 
-Best GNN: MLP-All (F1=0.8240), comparable to RF-All (F1=0.8267). SAGE-Profile (F1=0.8133±0.0004) vs MLP-Profile (F1=0.8063±0.0031) shows a small gap, but with only 3 seeds the 95% CI is approximately ±0.008 — the difference is consistent with noise.
+Best neural configuration: MLP-All (F1=0.8248), comparable to RF-All (F1=0.8259). SAGE-Profile (F1=0.8133±0.0004) vs MLP-Profile (F1=0.8063±0.0031) shows a small gap, but with only 3 seeds the 95% CI is approximately ±0.008 — the difference is consistent with noise.
 
 Critically, graph-convolutional variants (SAGE-All: 0.8189, RelSAGE-All: 0.8136, DomainRelSAGE-All: 0.8223) do not outperform the plain MLP-All (0.8240) on identical features. This confirms that message passing on a graph with avg. degree < 2 cannot extract structure beyond what a feedforward network captures from the same node-level features.
 
@@ -144,18 +142,18 @@ Critically, graph-convolutional variants (SAGE-All: 0.8189, RelSAGE-All: 0.8136,
 ## 6.1 RQ1: Does Neighbourhood Structure Improve Detection?
 
 
-**Valid comparison**: RF-Profile+Tweet (F1=0.8288) vs RF-All (F1=0.8267) — adding all neighbourhood features (topology+attr-smooth+label-prop) to a model that already has profile and tweet content.
+**Valid comparison**: RF-Profile+Tweet (F1=0.8287) vs RF-All (F1=0.8259) — adding all neighbourhood features (topology+attr-smooth+label-prop) to a model that already has profile and tweet content.
 
-The neighbourhood feature set changes F1 by **-0.0021** — effectively zero. Breaking this into mechanism-specific contributions:
+The neighbourhood feature set changes F1 by **-0.0028** — effectively zero. Breaking this into mechanism-specific contributions:
 
 | Step | ΔF1 | McNemar |
 |------|-----|---------|
-| Profile → +Tweets | **+0.0306** | p=0.0057 ** |
-| +Tweets → +Topology | **-0.0053** | p=0.4047 |
-| +Topology → +NeighbourAttr | **+0.0026** | p=0.7656 |
-| +NeighbourAttr → +LabelProp | **+0.0006** | p=1.0000 |
+| Profile → +Tweets | **+0.0292** | p=0.0058 ** |
+| +Tweets → +Topology | **-0.0065** | p=0.3239 |
+| +Topology → +NeighbourAttr | **+0.0029** | p=0.7604 |
+| +NeighbourAttr → +LabelProp | **+0.0008** | p=1.0000 |
 
-**Answer to RQ1**: No — neighbourhood structure does not meaningfully improve bot detection on TwiBot-20. The apparent improvement in the naive RF-Profile vs RF-All comparison (+0.0285, p=0.0069 **) is entirely driven by tweet-content features, not graph structure. When tweet features are held constant, adding neighbourhood features changes F1 by -0.0021, which is not statistically significant.
+**Answer to RQ1**: No — neighbourhood structure does not meaningfully improve bot detection on TwiBot-20. The apparent improvement in the naive RF-Profile vs RF-All comparison (+0.0264, p=0.0107 *) is entirely driven by tweet-content features, not graph structure. When tweet features are held constant, adding neighbourhood features changes F1 by -0.0028, which is not statistically significant.
 
 **Limitation of this test**: McNemar's test requires discordant predictions, and with n=1183 test samples a step change of <0.005–0.01 in F1 macro may not be detectable. Our 'not significant' findings for topology, attribute-smoothing, and label propagation could reflect either true null effects or insufficient power. We report the effect sizes and p-values transparently so readers can judge.
 
@@ -164,10 +162,10 @@ The neighbourhood feature set changes F1 by **-0.0021** — effectively zero. Br
 
 | Domain | Base Rate | n_test | ΔF1 Topology | ΔF1 Attr | ΔF1 Label-Prop |
 |--------|-----------|--------|--------------|----------|-----------------|
-| Business | 0.519 | — | -0.0209 | +0.0127 | +0.0070 |
-| Entertainment | 0.557 | — | +0.0109 | -0.0046 | +0.0041 |
-| Politics | 0.405 | — | -0.0118 | +0.0050 | -0.0086 |
-| Sports | 0.723 | — | +0.0039 | -0.0078 | +0.0014 |
+| Business | 0.519 | 293 | -0.0177 | +0.0131 | +0.0037 |
+| Entertainment | 0.557 | 280 | -0.0040 | +0.0028 | +0.0006 |
+| Politics | 0.405 | 343 | -0.0149 | +0.0052 | +0.0002 |
+| Sports | 0.723 | 267 | +0.0134 | -0.0134 | -0.0025 |
 
 Across all four domains, the per-domain effect sizes are within ±0.02 F1 — well within the noise range given per-domain test samples of 267–343. The DomainRelSAGE model (which explicitly conditions on domain via an 8-dim embedding) achieves F1=0.8223, below the plain MLP-All (0.8240) and substantially below a per-domain RF-All (0.8267).
 
@@ -181,11 +179,11 @@ Across all four domains, the per-domain effect sizes are within ±0.02 F1 — we
 
 | Comparison | McNemar χ² | p-value |
 |------------|------------|---------|
-| RF-Profile vs RF-Profile+Tweet | 7.65 | 0.0057 * |
-| RF-Profile+Tweet vs RF-Profile+Tweet+Topology | 0.69 | 0.4047 |
-| RF-Profile+Tweet+Topology vs RF-Profile+Tweet+Topology+NeighbourAttr | 0.09 | 0.7656 |
+| RF-Profile vs RF-Profile+Tweet | 7.61 | 0.0058 * |
+| RF-Profile+Tweet vs RF-Profile+Tweet+Topology | 0.97 | 0.3239 |
+| RF-Profile+Tweet+Topology vs RF-Profile+Tweet+Topology+NeighbourAttr | 0.09 | 0.7604 |
 | RF-Profile+Tweet+Topology+NeighbourAttr vs RF-All | 0.00 | 1.0000 |
-| RF-Profile vs RF-All | 7.29 | 0.0069 * |
+| RF-Profile vs RF-All | 6.51 | 0.0107 * |
 | RF-All vs RF-All-minus-LabelProp | 0.00 | 1.0000 |
 
 Only the RF-Profile vs RF-All comparison is significant (p < 0.01), a comparison that conflates tweet features with neighbourhood features. The sequential ladder steps — which each isolate a single mechanism — are all non-significant. This is the central finding of the paper.
@@ -195,10 +193,10 @@ Only the RF-Profile vs RF-All comparison is significant (p < 0.01), a comparison
 
 | Domain | n_test | Bot Rate | Global RF-All | Per-Domain RF-All | DomainRelSAGE-All |
 |--------|--------|----------|---------------|-------------------|-------------------|
-| Business | 293 | 0.519 | 0.8267 | 0.8230 | 0.7975 |
-| Entertainment | 280 | 0.557 | 0.8267 | 0.8169 | 0.7855 |
-| Politics | 343 | 0.405 | 0.8267 | 0.8405 | 0.8545 |
-| Sports | 267 | 0.723 | 0.8267 | 0.7709 | 0.7547 |
+| Business | 293 | 0.519 | 0.8259 | 0.8230 | 0.7937 |
+| Entertainment | 280 | 0.557 | 0.8259 | 0.8134 | 0.7842 |
+| Politics | 343 | 0.405 | 0.8259 | 0.8405 | 0.8609 |
+| Sports | 267 | 0.723 | 0.8259 | 0.7786 | 0.7421 |
 
 The global RF-All model generally matches or exceeds per-domain models, consistent with the finding that domain conditioning does not improve performance.
 
@@ -227,7 +225,7 @@ After standardising features, MLP-All (0.8240) approaches RF-All (0.8267), and g
 ## 7.2 The Role of Label Propagation
 
 
-Neighbour_bot_rate (label propagation) adds +0.0006 F1 to the full model. The feature has near-zero mean (0.0044) because most users have no labelled neighbours — only train-set labels (8,278 users out of 229,580) are available for propagation. On a denser graph with more labelled nodes, label propagation typically provides a strong homophily signal. On TwiBot-20's sparse, mostly-unlabelled graph, it is uninformative.
+Neighbour_bot_rate (label propagation) adds +0.0008 F1 to the full model. The feature has near-zero mean (0.0044) because most users have no labelled neighbours — only train-set labels (8,278 users out of 229,580) are available for propagation. On a denser graph with more labelled nodes, label propagation typically provides a strong homophily signal. On TwiBot-20's sparse, mostly-unlabelled graph, it is uninformative.
 
 ## 7.3 Comparison with Prior Work
 
@@ -256,10 +254,10 @@ We caution that our negative result ('GNNs do not help on this graph') is specif
 
 This study provides a decomposed analysis of neighbourhood structure in TwiBot-20 bot detection. Key findings:
 
-1. When the correct comparison is used (holding tweet features constant), neighbourhood features change F1 by -0.0021 — effectively zero.
-2. The apparent improvement from RF-Profile to RF-All (+0.0285) is entirely driven by tweet-content features (+0.0306), not graph structure.
+1. When the correct comparison is used (holding tweet features constant), neighbourhood features change F1 by -0.0028 — effectively zero.
+2. The apparent improvement from RF-Profile to RF-All (+0.0264) is entirely driven by tweet-content features (+0.0292), not graph structure.
 3. Per-domain analyses show effect sizes within noise given small domain test samples (~270–340). Domain-conditioned models (DomainRelSAGE) do not outperform a global MLP.
-4. GNNs (best: MLP-All, F1=0.8240) are competitive with RF (F1=0.8267) after proper feature standardisation, but graph-convolutional variants do not beat the plain MLP control. On TwiBot-20's sparse neighbour-list graph, message passing adds no value beyond feedforward processing of the same node-level features.
+4. The best neural configuration (MLP-All, F1=0.8248) is competitive with RF (F1=0.8259) after proper feature standardisation, but graph-convolutional variants do not beat the plain MLP control. On TwiBot-20's sparse neighbour-list graph, message passing adds no value beyond feedforward processing of the same node-level features.
 
 Our decomposition methodology — separating topology, attribute-smoothing, and label propagation — provides a template for interrogating which aspect of 'neighbourhood' drives performance. Without this decomposition, a naive RF-Profile vs RF-All comparison produces a statistically significant but misleadingly interpretable result.
 
@@ -280,9 +278,8 @@ Key observations:
 # References
 
 
-- Cresci, S., Di Pietro, R., Petrocchi, M., Spognardi, A., & Tesconi, M. (2017). The paradigm-shift of social spambots: Evidence, theories, and tools for the arms race. *WWW 2017.*
 - Feng, S., Wan, H., Wang, N., Li, J., & Luo, M. (2021). TwiBot-20: A comprehensive Twitter bot detection benchmark. *CIKM 2021.*
 - Feng, S., Wan, H., Wang, N., & Luo, M. (2022). BotRGCN: Twitter bot detection with relational graph convolutional networks. *ASONAM 2022.*
 
 ---
-*Report generated on 2026-07-01 06:43. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*
+*Report generated on 2026-07-01 18:54. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*

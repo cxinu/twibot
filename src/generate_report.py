@@ -159,12 +159,7 @@ def main():
       "the full retweet network and use a different feature set. Feng et al. (2022) revisited the dataset and found that "
       "neighbour-based features provide limited benefit relative to profile features, consistent with our findings.")
     L("")
-    L("**Bot detection on other datasets.** Cresci-2017 (Cresci et al., 2017) contains ~14K users from five account classes "
-      "with a retweet graph of ~1,400 edges, making it an even sparser graph than TwiBot-20. Most published results on "
-      "Cresci-2017 rely primarily on user-level features rather than graph structure. The widely-cited 'F1 > 0.99' results "
-      "on Cresci-2017 typically use the full feature set including crowdflower annotations and are not directly comparable "
-      "to our feature-limited setup.")
-    L("")
+
     L("**GNNs for social media.** Graph neural networks have shown promise on social network tasks when the graph is dense "
       "and edges are behaviourally meaningful (e.g., retweet networks, follow networks with high degree). On sampled "
       "neighbour lists — where each user observes at most 20 connections in each direction — message passing averages "
@@ -286,7 +281,7 @@ def main():
             L(f"| {row['config']} | {row['f1_macro_mean']:.4f} ± {row['f1_macro_std']:.4f} | "
               f"{row['auc_mean']:.4f} ± {row['auc_std']:.4f} |")
         L("")
-    L(f"Best GNN: {gnn_best_name} (F1={gnn_best_f1:.4f}), comparable to RF-All (F1={rf_all_f1:.4f}). "
+    L(f"Best neural configuration: {gnn_best_name} (F1={gnn_best_f1:.4f}), comparable to RF-All (F1={rf_all_f1:.4f}). "
       f"SAGE-Profile (F1=0.8133±0.0004) vs MLP-Profile (F1=0.8063±0.0031) shows a small gap, "
       f"but with only 3 seeds the 95% CI is approximately ±0.008 — the difference is consistent with noise.")
     L("")
@@ -334,7 +329,7 @@ def main():
         L("| Domain | Base Rate | n_test | ΔF1 Topology | ΔF1 Attr | ΔF1 Label-Prop |")
         L("|--------|-----------|--------|--------------|----------|-----------------|")
         for _, row in domain_decomp.iterrows():
-            L(f"| {row['domain'].capitalize()} | {row['base_rate']:.3f} | — | "
+            L(f"| {row['domain'].capitalize()} | {row['base_rate']:.3f} | {int(row['n_test'])} | "
               f"{row['delta_F1_topology']:+.4f} | {row['delta_F1_attr']:+.4f} | "
               f"{row['delta_F1_labelprop']:+.4f} |")
         L("")
@@ -470,7 +465,7 @@ def main():
       f"driven by tweet-content features (+{f1_tweet_gain:.4f}), not graph structure.")
     L(f"3. Per-domain analyses show effect sizes within noise given small domain test samples (~270–340). "
       f"Domain-conditioned models (DomainRelSAGE) do not outperform a global MLP.")
-    L(f"4. GNNs (best: {gnn_best_name}, F1={gnn_best_f1:.4f}) are competitive with RF (F1={rf_all_f1:.4f}) "
+    L(f"4. The best neural configuration ({gnn_best_name}, F1={gnn_best_f1:.4f}) is competitive with RF (F1={rf_all_f1:.4f}) "
       f"after proper feature standardisation, but graph-convolutional variants do not beat the plain MLP "
       f"control. On TwiBot-20's sparse neighbour-list graph, message passing adds no value beyond "
       "feedforward processing of the same node-level features.")
@@ -498,9 +493,6 @@ def main():
 
     H(1, "References")
     L("")
-    L("- Cresci, S., Di Pietro, R., Petrocchi, M., Spognardi, A., & Tesconi, M. (2017). "
-      "The paradigm-shift of social spambots: Evidence, theories, and tools for the arms race. "
-      "*WWW 2017.*")
     L("- Feng, S., Wan, H., Wang, N., Li, J., & Luo, M. (2021). TwiBot-20: A comprehensive "
       "Twitter bot detection benchmark. *CIKM 2021.*")
     L("- Feng, S., Wan, H., Wang, N., & Luo, M. (2022). BotRGCN: Twitter bot detection with "

@@ -38,8 +38,8 @@ NEIGHBOUR_ATTR_FEATURES = [
 
 LABEL_PROP_FEATURES = ["neighbour_bot_rate"]
 
-INPUT_PARQUET = "dataset/twibot_df.parquet"
-OUTPUT_DIR = "dataset"
+INPUT_PARQUET = "data/twibot-20/twibot_df.parquet"
+OUTPUT_DIR = "data/twibot-20"
 
 
 def main():

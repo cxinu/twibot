@@ -7,13 +7,13 @@ import torch
 from torch_geometric.data import Data
 from tqdm import tqdm
 
-INPUT_PARQUET = "dataset/twibot_df.parquet"
-OUTPUT_GRAPH = "dataset/twibot_graph.pt"
+INPUT_PARQUET = "data/twibot-20/twibot_df.parquet"
+OUTPUT_GRAPH = "data/twibot-20/twibot_graph.pt"
 STATS_CSV = "results/tables/graph_stats.csv"
 
 
 def main():
-    os.makedirs("dataset", exist_ok=True)
+    os.makedirs("data/twibot-20", exist_ok=True)
     os.makedirs("results/tables", exist_ok=True)
 
     print("Loading DataFrame...")

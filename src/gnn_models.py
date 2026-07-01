@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore")
 
 OUTPUT_DIR = "results/tables"
 FIGURE_DIR = "results/figures"
-FEATURE_DIR = "dataset"
+FEATURE_DIR = "data/twibot-20"
 SEEDS = [42, 123, 456]
 EPOCHS = 200
 PATIENCE = 20
@@ -290,7 +290,7 @@ def main():
     print(f"Using device: {device}")
 
     print("Loading data...")
-    data = torch.load("dataset/twibot_graph.pt", weights_only=False)
+    data = torch.load("data/twibot-20/twibot_graph.pt", weights_only=False)
 
     with open(os.path.join(FEATURE_DIR, "feature_names.json")) as f:
         feature_names = json.load(f)
@@ -374,7 +374,7 @@ def main():
     ]
 
     all_results = []
-    domain_test = pd.read_parquet("dataset/twibot_df.parquet")["domain"].values[data.test_mask.cpu().numpy()]
+    domain_test = pd.read_parquet("data/twibot-20/twibot_df.parquet")["domain"].values[data.test_mask.cpu().numpy()]
 
     for cfg in configs:
         name = cfg["name"]

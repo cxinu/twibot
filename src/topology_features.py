@@ -9,9 +9,9 @@ import pandas as pd
 from tqdm import tqdm
 from sklearn.cluster import KMeans
 
-INPUT_PARQUET = "dataset/twibot_df.parquet"
-OUTPUT_FILE = "dataset/features_topology.npy"
-FEATURE_NAMES_FILE = "dataset/feature_names.json"
+INPUT_PARQUET = "data/twibot-20/twibot_df.parquet"
+OUTPUT_FILE = "data/twibot-20/features_topology.npy"
+FEATURE_NAMES_FILE = "data/twibot-20/feature_names.json"
 
 TOPOLOGY_FEATURES = [
     "degree", "in_degree", "out_degree",

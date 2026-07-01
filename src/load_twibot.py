@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 
 DATA_DIR = "dataset/Twibot-20"
-OUTPUT_PARQUET = "dataset/twibot_df.parquet"
+OUTPUT_PARQUET = "data/twibot-20/twibot_df.parquet"
 STATS_CSV = "results/tables/dataset_stats.csv"
 FIG_OVERVIEW = "results/figures/fig_dataset_overview.png"
 

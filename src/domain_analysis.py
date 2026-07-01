@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 
 FIGURE_DIR = "results/figures"
 OUTPUT_DIR = "results/tables"
-FEATURE_DIR = "dataset"
+FEATURE_DIR = "data/twibot-20"
 COLORS = {
     "profile": "#2A9D8F", "tweet": "#E9C46A", "topology": "#6A994E",
     "neighbour_attr": "#F4A261", "label_prop": "#9D4EDD", "all": "#264653",
@@ -58,7 +58,7 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print("Loading data...")
-    df = pd.read_parquet("dataset/twibot_df.parquet")
+    df = pd.read_parquet("data/twibot-20/twibot_df.parquet")
     with open(os.path.join(FEATURE_DIR, "feature_names.json")) as f:
         feature_names = json.load(f)
     feats = {}
@@ -152,6 +152,7 @@ def main():
         delta_labelprop = scores["rf_all"]["f1"] - scores["rf_all_minus_labelprop"]["f1"]
         domain_breakdown.append({
             "domain": domain,
+            "n_test": int(mask_test.sum()),
             "base_rate": round(base_rate, 4),
             "f1_profile_tweet": round(scores["profile_tweet"]["f1"], 4),
             "f1_plus_topology": round(scores["profile_tweet_topology"]["f1"], 4),
@@ -270,6 +271,9 @@ def main():
 
     # ── 6D: Global vs Per-Domain vs Domain-Conditioned ──
     print("\n6D: Global vs Per-Domain vs Domain-Conditioned...")
+    all_groups = ["profile", "tweet", "topology", "neighbour_attr", "label_prop"]
+    X_train_all = np.concatenate([feats[g][train_mask] for g in all_groups], axis=1)
+    X_test_all = np.concatenate([feats[g][test_mask] for g in all_groups], axis=1)
     # Global RF-All
     rf_all_global = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
     rf_all_global.fit(X_train_all, y_train)

@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore")
 
 OUTPUT_DIR = "results/tables"
 FIGURE_DIR = "results/figures"
-FEATURE_DIR = "dataset"
+FEATURE_DIR = "data/twibot-20"
 
 CONFIGS = [
     "RF-Profile",
@@ -56,7 +56,7 @@ def main():
         feats[group] = np.load(path)
         print(f"  {group}: {feats[group].shape}")
 
-    df = pd.read_parquet("dataset/twibot_df.parquet")
+    df = pd.read_parquet("data/twibot-20/twibot_df.parquet")
     train_mask = df["split"] == "train"
     test_mask = df["split"] == "test"
     dev_mask = df["split"] == "dev"
