@@ -171,32 +171,78 @@ def main():
     print("\n6C: Significance testing (McNemar)...")
     sig_results = []
 
-    # Train classifiers for all comparisons
-    # RF-Profile
-    rf_profile = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
-    X_train_profile = feats["profile"][train_mask]
-    X_test_profile = feats["profile"][test_mask]
-    rf_profile.fit(X_train_profile, y_train)
-    pred_profile = rf_profile.predict(X_test_profile)
+    def train_and_predict(groups):
+        X_tr = np.concatenate([feats[g][train_mask] for g in groups], axis=1)
+        X_te = np.concatenate([feats[g][test_mask] for g in groups], axis=1)
+        clf = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
+        clf.fit(X_tr, y_train)
+        return clf.predict(X_te)
 
-    # RF-All
-    X_train_all = np.concatenate([feats[g][train_mask] for g in ["profile", "tweet", "topology", "neighbour_attr", "label_prop"]], axis=1)
-    X_test_all = np.concatenate([feats[g][test_mask] for g in ["profile", "tweet", "topology", "neighbour_attr", "label_prop"]], axis=1)
-    rf_all = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
-    rf_all.fit(X_train_all, y_train)
-    pred_all = rf_all.predict(X_test_all)
+    def train_and_predict_per_domain(groups, domain):
+        dom_train = df["domain"].values[train_mask] == domain
+        dom_test = domain_test == domain
+        X_tr = np.concatenate([feats[g][train_mask][dom_train] for g in groups], axis=1)
+        X_te = np.concatenate([feats[g][test_mask][dom_test] for g in groups], axis=1)
+        y_tr = y_train[dom_train]
+        if len(np.unique(y_tr)) < 2:
+            return np.zeros(len(y_test[dom_test]), dtype=int)
+        clf = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
+        clf.fit(X_tr, y_tr)
+        return clf.predict(X_te)
 
-    # RF-All-minus-LabelProp
-    X_train_nolp = np.concatenate([feats[g][train_mask] for g in ["profile", "tweet", "topology", "neighbour_attr"]], axis=1)
-    X_test_nolp = np.concatenate([feats[g][test_mask] for g in ["profile", "tweet", "topology", "neighbour_attr"]], axis=1)
-    rf_nolp = RandomForestClassifier(n_estimators=500, max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1)
-    rf_nolp.fit(X_train_nolp, y_train)
-    pred_nolp = rf_nolp.predict(X_test_nolp)
+    pred_profile = train_and_predict(["profile"])
+    pred_profile_tweet = train_and_predict(["profile", "tweet"])
+    pred_profile_tweet_topo = train_and_predict(["profile", "tweet", "topology"])
+    pred_profile_tweet_topo_attr = train_and_predict(["profile", "tweet", "topology", "neighbour_attr"])
+    pred_all = train_and_predict(["profile", "tweet", "topology", "neighbour_attr", "label_prop"])
+    pred_nolp = pred_profile_tweet_topo_attr  # same as All-minus-LabelProp
 
+    # Sequential ladder comparisons (each isolates one mechanism)
     comparisons = [
+        ("RF-Profile vs RF-Profile+Tweet", pred_profile, pred_profile_tweet),
+        ("RF-Profile+Tweet vs RF-Profile+Tweet+Topology", pred_profile_tweet, pred_profile_tweet_topo),
+        ("RF-Profile+Tweet+Topology vs RF-Profile+Tweet+Topology+NeighbourAttr",
+         pred_profile_tweet_topo, pred_profile_tweet_topo_attr),
+        ("RF-Profile+Tweet+Topology+NeighbourAttr vs RF-All",
+         pred_profile_tweet_topo_attr, pred_all),
         ("RF-Profile vs RF-All", pred_profile, pred_all),
         ("RF-All vs RF-All-minus-LabelProp", pred_all, pred_nolp),
     ]
+
+    # Per-domain sequential tests for the neighbourhood-relevant steps
+    for domain in sorted(set(domain_test)):
+        mask = domain_test == domain
+        if mask.sum() < 30:
+            continue
+        y_d = y_test[mask]
+        d_profile = train_and_predict_per_domain(["profile"], domain)
+        d_profile_tweet = train_and_predict_per_domain(["profile", "tweet"], domain)
+        d_profile_tweet_topo = train_and_predict_per_domain(["profile", "tweet", "topology"], domain)
+        d_profile_tweet_topo_attr = train_and_predict_per_domain(["profile", "tweet", "topology", "neighbour_attr"], domain)
+        d_all = train_and_predict_per_domain(["profile", "tweet", "topology", "neighbour_attr", "label_prop"], domain)
+
+        # Only add comparisons that have different predictions
+        comps = [
+            (f"RF-Profile+Tweet vs +Topology ({domain})", d_profile_tweet, d_profile_tweet_topo),
+            (f"+Topology vs +NeighbourAttr ({domain})", d_profile_tweet_topo, d_profile_tweet_topo_attr),
+            (f"RF-All vs RF-All-minus-LabelProp ({domain})", d_all, d_profile_tweet_topo_attr),
+        ]
+        for cname, p1, p2 in comps:
+            if len(set(p1.tolist() + p2.tolist())) < 2:
+                continue  # degenerate — skip
+            p_val, stat = mcnemar_test(y_d, p1, p2)
+            sig = ""
+            if p_val < 0.01:
+                sig = "**"
+            elif p_val < 0.05:
+                sig = "*"
+            print(f"  {cname}: stat={stat:.2f}, p={p_val:.4f} {sig}")
+            sig_results.append({
+                "comparison": cname,
+                "statistic": round(stat, 2),
+                "p_value": round(p_val, 4),
+                "significant": sig,
+            })
 
     # GNN predictions - load from gnn_results.csv (metrics only, no stored predictions)
     # We compare RF-based models here; GNN comparisons are discussed in the report
