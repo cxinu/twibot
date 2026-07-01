@@ -9,12 +9,10 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv
+from torch_geometric.nn import SAGEConv, RGCNConv
 from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score, precision_recall_fscore_support, ConfusionMatrixDisplay
 from torch.optim import Adam
 from scipy.stats import chi2 as chi2_dist
-from tqdm import tqdm
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -214,7 +212,161 @@ class DomainRelBotSAGE(nn.Module):
         return torch.sigmoid(self.head(x_cat)).squeeze(-1)
 
 
-def train_model(model, data, train_mask, val_mask, seed, model_type, node_features=None, device="cpu"):
+class BotRGCN(nn.Module):
+    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8, neighbour_dim=6,
+                 embedding_dimension=128, dropout=0.3):
+        super().__init__()
+        self.dropout = dropout
+        self.linear_relu_profile = nn.Sequential(
+            nn.Linear(profile_dim, embedding_dimension // 4),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_tweet = nn.Sequential(
+            nn.Linear(tweet_dim, embedding_dimension // 4),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_topology = nn.Sequential(
+            nn.Linear(topology_dim, embedding_dimension // 4),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_neighbour = nn.Sequential(
+            nn.Linear(neighbour_dim, embedding_dimension // 4),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.rgcn = RGCNConv(embedding_dimension, embedding_dimension, num_relations=2)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 1)
+
+    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
+        p = self.linear_relu_profile(profile)
+        t = self.linear_relu_tweet(tweet)
+        topo = self.linear_relu_topology(topology)
+        n = self.linear_relu_neighbour(neighbour)
+        x = torch.cat((p, t, topo, n), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return torch.sigmoid(x).squeeze(-1)
+
+
+class BotRGCNProfile(nn.Module):
+    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8, neighbour_dim=6,
+                 embedding_dimension=128, dropout=0.3):
+        super().__init__()
+        self.dropout = dropout
+        self.linear_relu_profile = nn.Sequential(
+            nn.Linear(profile_dim, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.rgcn = RGCNConv(embedding_dimension, embedding_dimension, num_relations=2)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 1)
+
+    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
+        x = self.linear_relu_profile(profile)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return torch.sigmoid(x).squeeze(-1)
+
+
+class BotRGCNProfileTweet(nn.Module):
+    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8, neighbour_dim=6,
+                 embedding_dimension=128, dropout=0.3):
+        super().__init__()
+        self.dropout = dropout
+        self.linear_relu_profile = nn.Sequential(
+            nn.Linear(profile_dim, embedding_dimension // 2),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_tweet = nn.Sequential(
+            nn.Linear(tweet_dim, embedding_dimension // 2),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.rgcn = RGCNConv(embedding_dimension, embedding_dimension, num_relations=2)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 1)
+
+    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
+        p = self.linear_relu_profile(profile)
+        t = self.linear_relu_tweet(tweet)
+        x = torch.cat((p, t), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return torch.sigmoid(x).squeeze(-1)
+
+
+class BotRGCNTopoNeighbour(nn.Module):
+    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8, neighbour_dim=6,
+                 embedding_dimension=128, dropout=0.3):
+        super().__init__()
+        self.dropout = dropout
+        self.linear_relu_topology = nn.Sequential(
+            nn.Linear(topology_dim, embedding_dimension // 2),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_neighbour = nn.Sequential(
+            nn.Linear(neighbour_dim, embedding_dimension // 2),
+            nn.LeakyReLU(),
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.rgcn = RGCNConv(embedding_dimension, embedding_dimension, num_relations=2)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 1)
+
+    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
+        topo = self.linear_relu_topology(topology)
+        n = self.linear_relu_neighbour(neighbour)
+        x = torch.cat((topo, n), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return torch.sigmoid(x).squeeze(-1)
+
+
+def train_model(model, data, train_mask, val_mask, seed, model_type, node_features=None,
+                profile_feats=None, tweet_feats=None, topology_feats=None, neighbour_feats=None,
+                device="cpu"):
     torch.manual_seed(seed)
     np.random.seed(seed)
     model = model.to(device)
@@ -225,6 +377,14 @@ def train_model(model, data, train_mask, val_mask, seed, model_type, node_featur
     data = data.to(device)
     if node_features is not None:
         node_features = node_features.to(device)
+    if profile_feats is not None:
+        profile_feats = profile_feats.to(device)
+    if tweet_feats is not None:
+        tweet_feats = tweet_feats.to(device)
+    if topology_feats is not None:
+        topology_feats = topology_feats.to(device)
+    if neighbour_feats is not None:
+        neighbour_feats = neighbour_feats.to(device)
     train_mask = train_mask.to(device)
     val_mask = val_mask.to(device)
 
@@ -250,6 +410,9 @@ def train_model(model, data, train_mask, val_mask, seed, model_type, node_featur
             pred = model(node_features, data.edge_index_follow, data.edge_index_following)
         elif model_type == "domain_relsage":
             pred = model(node_features, data.edge_index_follow, data.edge_index_following, data.domain)
+        elif model_type == "rgcn":
+            pred = model(profile_feats, tweet_feats, topology_feats, neighbour_feats,
+                         data.edge_index_rgcn, data.edge_type)
 
         train_pred = pred[train_mask]
         train_y = data.y[train_mask]
@@ -269,6 +432,9 @@ def train_model(model, data, train_mask, val_mask, seed, model_type, node_featur
                     val_pred = model(node_features, data.edge_index_follow, data.edge_index_following)
                 elif model_type == "domain_relsage":
                     val_pred = model(node_features, data.edge_index_follow, data.edge_index_following, data.domain)
+                elif model_type == "rgcn":
+                    val_pred = model(profile_feats, tweet_feats, topology_feats, neighbour_feats,
+                                     data.edge_index_rgcn, data.edge_type)
 
                 val_pred_masked = val_pred[val_mask]
                 val_y = data.y[val_mask]
@@ -290,11 +456,21 @@ def train_model(model, data, train_mask, val_mask, seed, model_type, node_featur
     return model
 
 
-def evaluate(model, data, test_mask, model_type, node_features=None, device="cpu"):
+def evaluate(model, data, test_mask, model_type, node_features=None,
+             profile_feats=None, tweet_feats=None, topology_feats=None, neighbour_feats=None,
+             device="cpu"):
     model.eval()
     data = data.to(device)
     if node_features is not None:
         node_features = node_features.to(device)
+    if profile_feats is not None:
+        profile_feats = profile_feats.to(device)
+    if tweet_feats is not None:
+        tweet_feats = tweet_feats.to(device)
+    if topology_feats is not None:
+        topology_feats = topology_feats.to(device)
+    if neighbour_feats is not None:
+        neighbour_feats = neighbour_feats.to(device)
     test_mask = test_mask.to(device)
     with torch.no_grad():
         if model_type == "mlp":
@@ -305,6 +481,9 @@ def evaluate(model, data, test_mask, model_type, node_features=None, device="cpu
             pred = model(node_features, data.edge_index_follow, data.edge_index_following)
         elif model_type == "domain_relsage":
             pred = model(node_features, data.edge_index_follow, data.edge_index_following, data.domain)
+        elif model_type == "rgcn":
+            pred = model(profile_feats, tweet_feats, topology_feats, neighbour_feats,
+                         data.edge_index_rgcn, data.edge_type)
 
         y_true = data.y[test_mask].cpu().numpy()
         y_prob = pred[test_mask].cpu().numpy()
@@ -349,6 +528,12 @@ def mcnemar_pvalue(y_true, y_pred1, y_pred2):
         return 1.0
     chi2_stat = (abs(c01 - c10) - 1) ** 2 / n
     return float(chi2_dist.sf(chi2_stat, 1))
+
+
+def ensemble_preds(y_prob_list, threshold=0.5):
+    y_prob = np.mean(y_prob_list, axis=0)
+    y_pred = (y_prob >= threshold).astype(int)
+    return y_prob, y_pred
 
 
 def bucket_eval(y_true_list, y_pred_list, y_prob_list, bucket_idx, label):
@@ -407,6 +592,12 @@ def main():
 
     x_profile = torch.tensor(feats["profile"], dtype=torch.float)
     profile_dim = x_profile.size(1)
+    x_tweet = torch.tensor(feats["tweet"], dtype=torch.float)
+    tweet_dim = x_tweet.size(1)
+    x_topology = torch.tensor(feats["topology"], dtype=torch.float)
+    topology_dim = x_topology.size(1)
+    x_neighbour = torch.tensor(feats["neighbour_attr"], dtype=torch.float)
+    neighbour_dim = x_neighbour.size(1)
 
     x_all = torch.tensor(np.concatenate([
         feats["profile"], feats["tweet"],
@@ -492,6 +683,47 @@ def main():
             "in_dim": all_dim,
             "features": x_all,
         },
+        {
+            "name": "RGCN-All",
+            "model_class": BotRGCN,
+            "model_type": "rgcn",
+            "model_kwargs": {"profile_dim": profile_dim, "tweet_dim": tweet_dim,
+                              "topology_dim": topology_dim, "neighbour_dim": neighbour_dim},
+            "profile_feats": x_profile,
+            "tweet_feats": x_tweet,
+            "topology_feats": x_topology,
+            "neighbour_feats": x_neighbour,
+        },
+        {
+            "name": "RGCN-Profile",
+            "model_class": BotRGCNProfile,
+            "model_type": "rgcn",
+            "model_kwargs": {"profile_dim": profile_dim},
+            "profile_feats": x_profile,
+            "tweet_feats": x_tweet,
+            "topology_feats": x_topology,
+            "neighbour_feats": x_neighbour,
+        },
+        {
+            "name": "RGCN-Profile+Tweet",
+            "model_class": BotRGCNProfileTweet,
+            "model_type": "rgcn",
+            "model_kwargs": {"profile_dim": profile_dim, "tweet_dim": tweet_dim},
+            "profile_feats": x_profile,
+            "tweet_feats": x_tweet,
+            "topology_feats": x_topology,
+            "neighbour_feats": x_neighbour,
+        },
+        {
+            "name": "RGCN-Topo+Neighbour",
+            "model_class": BotRGCNTopoNeighbour,
+            "model_type": "rgcn",
+            "model_kwargs": {"topology_dim": topology_dim, "neighbour_dim": neighbour_dim},
+            "profile_feats": x_profile,
+            "tweet_feats": x_tweet,
+            "topology_feats": x_topology,
+            "neighbour_feats": x_neighbour,
+        },
     ]
 
     all_results = []
@@ -509,14 +741,27 @@ def main():
 
         for seed in SEEDS:
             print(f"  Seed {seed}...")
-            model = cfg["model_class"](cfg["in_dim"])
+            if cfg["model_type"] == "rgcn":
+                model = cfg["model_class"](**cfg.get("model_kwargs", {}))
+            else:
+                model = cfg["model_class"](cfg["in_dim"])
             trained = train_model(
                 model, data, train_mask, val_mask, seed,
-                cfg["model_type"], node_features=cfg["features"], device=device
+                cfg["model_type"], node_features=cfg.get("features"),
+                profile_feats=cfg.get("profile_feats"),
+                tweet_feats=cfg.get("tweet_feats"),
+                topology_feats=cfg.get("topology_feats"),
+                neighbour_feats=cfg.get("neighbour_feats"),
+                device=device
             )
             y_true, y_pred, y_prob, metrics = evaluate(
                 trained, data, test_mask,
-                cfg["model_type"], node_features=cfg["features"], device=device
+                cfg["model_type"], node_features=cfg.get("features"),
+                profile_feats=cfg.get("profile_feats"),
+                tweet_feats=cfg.get("tweet_feats"),
+                topology_feats=cfg.get("topology_feats"),
+                neighbour_feats=cfg.get("neighbour_feats"),
+                device=device
             )
             seed_metrics.append(metrics)
             all_y_true.append(y_true)
@@ -639,10 +884,12 @@ def main():
 
                 delta = round(h_eval["f1_macro_mean"] - s_eval["f1_macro_mean"], 4)
 
+                sage_prob_e, sage_pred_e = ensemble_preds(sage["y_prob"])
+                hetero_prob_e, hetero_pred_e = ensemble_preds(hetero["y_prob"])
                 p_val = mcnemar_pvalue(
                     sage["y_true"][0][b_idx],
-                    sage["y_pred"][0][b_idx],
-                    hetero["y_pred"][0][b_idx],
+                    sage_pred_e[b_idx],
+                    hetero_pred_e[b_idx],
                 )
 
                 print(f"  {b_name:<22} {s_eval['n']:>6}  "
@@ -712,10 +959,12 @@ def main():
 
                 delta = round(h_eval["f1_macro_mean"] - m_eval["f1_macro_mean"], 4)
 
+                mlp_prob_e, mlp_pred_e = ensemble_preds(mlp["y_prob"])
+                hetero_prob_e, hetero_pred_e = ensemble_preds(hetero["y_prob"])
                 p_val = mcnemar_pvalue(
                     mlp["y_true"][0][b_idx],
-                    mlp["y_pred"][0][b_idx],
-                    hetero["y_pred"][0][b_idx],
+                    mlp_pred_e[b_idx],
+                    hetero_pred_e[b_idx],
                 )
 
                 print(f"  {b_name:<22} {m_eval['n']:>6}  "

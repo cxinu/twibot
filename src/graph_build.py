@@ -62,6 +62,9 @@ def main():
     edge_index = torch.unique(edge_index, dim=1)
     print(f"Combined undirected edges: {edge_index.size(1)}")
 
+    # RGCN edge_index: concatenation of follow and following edges (aligned with edge_type)
+    edge_index_rgcn = torch.cat([edge_index_follow, edge_index_following], dim=1)
+
     # Edge type tensor: 0=follow, 1=following
     edge_type_follow = torch.zeros(edge_index_follow.size(1), dtype=torch.long)
     edge_type_following = torch.ones(edge_index_following.size(1), dtype=torch.long)
@@ -93,6 +96,7 @@ def main():
     data = Data(
         x=None,
         edge_index=edge_index,
+        edge_index_rgcn=edge_index_rgcn,
         edge_index_follow=edge_index_follow,
         edge_index_following=edge_index_following,
         edge_type=torch.cat([edge_type_follow, edge_type_following]),

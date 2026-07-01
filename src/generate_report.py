@@ -254,8 +254,8 @@ def main():
 
     H(2, "5.2 RF Ablation Ladder")
     L("")
-    L("Random Forest (500 trees, sqrt features, balanced class weight), 5-fold stratified CV on train, "
-      "evaluated on held-out test. Configurations in isolation order:")
+    L("Random Forest (500 trees, sqrt features, balanced class weight), "
+      "evaluated on held-out test set. Configurations in isolation order:")
     L("")
     L("| Config | Features | F1 Macro | AUC |")
     L("|--------|----------|----------|-----|")
@@ -285,9 +285,13 @@ def main():
 
     H(2, "5.3 GNN Training")
     L("")
-    L("Four GNN variants plus MLP controls, each with 3 random seeds [42, 123, 456]. "
+    L("Four GNN variants plus MLP controls, each with 10 random seeds "
+      "[42, 123, 456, 789, 1011, 1314, 1617, 1819, 2021, 2223]. "
       "Full-batch Adam (lr=1e-3, wd=1e-4), weighted BCE, 200 epochs/patience 20. "
-      "Features are z-score standardised per split using training-set statistics.")
+      "Features are z-score standardised per split using training-set statistics. "
+      "For significance tests between models, predicted probabilities are ensembled across "
+      "seeds via averaging before thresholding, and McNemar's test is applied to the "
+      "ensembled predictions — this uses all seed information rather than a single seed.")
     L("")
     L("| Config | F1 Macro | AUC |")
     L("|--------|----------|-----|")
@@ -424,6 +428,10 @@ def main():
       "is not statistically significant (McNemar test over the full test set: p=0.89). The comparison "
       "of primary interest is therefore SAGE-All vs HeteroSAGE-All, which isolates the effect of the "
       "aggregation change while holding the model architecture constant.")
+    L("")
+    L("All McNemar tests use ensembled predictions: model-wise predicted probabilities are averaged "
+      "across the 10 seeds before thresholding at 0.5, so the significance test draws on the full "
+      "seed distribution rather than a single run.")
     L("")
     L("To isolate the mechanism, we split test nodes into low-homophily (<0.5) and high-homophily "
       "(≥0.5) buckets (pre-registered threshold) and evaluate SAGE-All vs HeteroSAGE-All within each:")
@@ -597,8 +605,9 @@ def main():
       "10.4% isolated) is orders of magnitude sparser than the real Twitter graph.")
     L("2. **The `domain` label is a dataset-provided attribute of unclear provenance.** "
       "Domain-conditional findings are exploratory, not causal.")
-    L("3. **Three seeds is a thin variance estimate for GNN configs.** The 95% CI for GNN results spans "
-      "approximately ±0.008 F1. Our GNN findings are indicative, not robust statistical claims.")
+    L("3. **Ten seeds provides improved variance estimates.** With 10 seeds per config, the 95% CI for GNN results "
+      "spans approximately ±0.004 F1 for most configurations. This is a substantial improvement over a 3-seed "
+      "analysis but still leaves small effect sizes (ΔF1 < 0.005) within noise range.")
     L("4. **No temporal signal.** Tweet times, account creation dates relative to network formation, "
       "and chronologically ordered interactions could provide additional signal.")
     L("5. **Community detection (Louvain) is one specific choice among several reasonable ones.** "
@@ -612,9 +621,10 @@ def main():
       "The low vs high homophily bucket comparison is a single pre-registered test; we report it as is "
       "without threshold sweeping. Results at alternative thresholds or with different binning strategies "
       "may differ.")
-    L("9. **The HeteroSAGE variant is evaluated on the same 3 seeds as other models.** "
-      "The McNemar significance results are based on a single seed (seed 42) rather than aggregated "
-      "across seeds. The consistency of the directional pattern across all 3 seeds mitigates this concern.")
+    L("9. **McNemar tests use ensembled predictions.** Model-wise predicted probabilities are averaged "
+      "across 10 seeds before thresholding; McNemar's test is then applied to the ensembled labels. "
+      "This is standard practice and uses all available seed information, but the ensemble may "
+      "underestimate per-seed prediction variance.")
     L("10. **Multiple comparison burden in the heterophily analysis.** The bucket comparison (§6.4) "
       "reports p-values across low/high homophily splits, degree filters, and model comparisons "
       "(SAGE vs Hetero, MLP vs Hetero). None of the reported p-values survive Bonferroni correction "

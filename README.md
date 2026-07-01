@@ -97,7 +97,7 @@ Baseline-Majority (F1=0.3511) reflects the ~55.7% bot prevalence. Baseline-LogRe
 ## 5.2 RF Ablation Ladder
 
 
-Random Forest (500 trees, sqrt features, balanced class weight), 5-fold stratified CV on train, evaluated on held-out test. Configurations in isolation order:
+Random Forest (500 trees, sqrt features, balanced class weight), evaluated on held-out test set. Configurations in isolation order:
 
 | Config | Features | F1 Macro | AUC |
 |--------|----------|----------|-----|
@@ -125,20 +125,24 @@ Key observations:
 ## 5.3 GNN Training
 
 
-Four GNN variants plus MLP controls, each with 3 random seeds [42, 123, 456]. Full-batch Adam (lr=1e-3, wd=1e-4), weighted BCE, 200 epochs/patience 20. Features are z-score standardised per split using training-set statistics.
+Four GNN variants plus MLP controls, each with 10 random seeds [42, 123, 456, 789, 1011, 1314, 1617, 1819, 2021, 2223]. Full-batch Adam (lr=1e-3, wd=1e-4), weighted BCE, 200 epochs/patience 20. Features are z-score standardised per split using training-set statistics. For significance tests between models, predicted probabilities are ensembled across seeds via averaging before thresholding, and McNemar's test is applied to the ensembled predictions — this uses all seed information rather than a single seed.
 
 | Config | F1 Macro | AUC |
 |--------|----------|-----|
 | MLP-Profile | 0.8060 ± 0.0035 | 0.8667 ± 0.0012 |
-| SAGE-Profile | 0.8143 ± 0.0031 | 0.8909 ± 0.0013 |
+| SAGE-Profile | 0.8144 ± 0.0012 | 0.8918 ± 0.0006 |
 | MLP-All | 0.8248 ± 0.0013 | 0.9050 ± 0.0020 |
-| SAGE-All | 0.8192 ± 0.0038 | 0.9121 ± 0.0013 |
-| RelSAGE-All | 0.8137 ± 0.0041 | 0.9038 ± 0.0012 |
-| DomainRelSAGE-All | 0.8215 ± 0.0046 | 0.9024 ± 0.0009 |
-| HeteroSAGE-Profile | 0.8132 ± 0.0034 | 0.8894 ± 0.0014 |
-| HeteroSAGE-All | 0.8275 ± 0.0030 | 0.9123 ± 0.0006 |
+| SAGE-All | 0.8202 ± 0.0045 | 0.9120 ± 0.0013 |
+| RelSAGE-All | 0.8153 ± 0.0042 | 0.9037 ± 0.0011 |
+| DomainRelSAGE-All | 0.8210 ± 0.0047 | 0.9025 ± 0.0010 |
+| HeteroSAGE-Profile | 0.8127 ± 0.0040 | 0.8894 ± 0.0018 |
+| HeteroSAGE-All | 0.8262 ± 0.0038 | 0.9125 ± 0.0008 |
+| RGCN-All | 0.8241 ± 0.0060 | 0.9071 ± 0.0006 |
+| RGCN-Profile | 0.7993 ± 0.0012 | 0.8650 ± 0.0011 |
+| RGCN-Profile+Tweet | 0.8100 ± 0.0038 | 0.8979 ± 0.0024 |
+| RGCN-Topo+Neighbour | 0.7129 ± 0.0064 | 0.7866 ± 0.0061 |
 
-Best neural configuration: HeteroSAGE-All (F1=0.8275), comparable to RF-All (F1=0.8259).
+Best neural configuration: HeteroSAGE-All (F1=0.8262), comparable to RF-All (F1=0.8259).
 
 Critically, standard graph-convolutional variants (SAGE-All: ~0.8192, RelSAGE-All: ~0.8137, DomainRelSAGE-All: ~0.8215) do not outperform the plain MLP-All (~0.8248) on identical features. A **heterophily-aware variant** (HeteroSAGE-All: 0.8275) — which replaces mean aggregation with a sign-flipped difference operation — achieves a higher point estimate, but the difference relative to MLP-All is not statistically significant (McNemar p=0.89). This suggests the issue is partly the specific aggregation function: standard mean aggregation assumes homophily, which the TwiBot-20 graph does not satisfy, but the heterogeneity is not strong enough to produce a clear GNN advantage.
 
@@ -219,6 +223,8 @@ HeteroSAGE-All achieves **F1=0.8275 ± 0.0030** (3 seeds), the best GNN point es
 
 The gap between HeteroSAGE-All and MLP-All is +0.0027 in point estimate, but this difference is not statistically significant (McNemar test over the full test set: p=0.89). The comparison of primary interest is therefore SAGE-All vs HeteroSAGE-All, which isolates the effect of the aggregation change while holding the model architecture constant.
 
+All McNemar tests use ensembled predictions: model-wise predicted probabilities are averaged across the 10 seeds before thresholding at 0.5, so the significance test draws on the full seed distribution rather than a single run.
+
 To isolate the mechanism, we split test nodes into low-homophily (<0.5) and high-homophily (≥0.5) buckets (pre-registered threshold) and evaluate SAGE-All vs HeteroSAGE-All within each:
 
 | Bucket | N | SAGE-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |
@@ -275,7 +281,7 @@ Only the RF-Profile vs RF-All comparison is significant (p < 0.01), a comparison
 |--------|--------|----------|---------------|-------------------|-------------------|
 | Business | 293 | 0.519 | 0.8259 | 0.8230 | 0.7937 |
 | Entertainment | 280 | 0.557 | 0.8259 | 0.8134 | 0.7842 |
-| Politics | 343 | 0.405 | 0.8259 | 0.8405 | 0.8609 |
+| Politics | 343 | 0.405 | 0.8259 | 0.8405 | 0.8577 |
 | Sports | 267 | 0.723 | 0.8259 | 0.7786 | 0.7421 |
 
 The global RF-All model generally matches or exceeds per-domain models, consistent with the finding that domain conditioning does not improve performance.
@@ -332,13 +338,13 @@ The practical implication: before concluding that 'GNNs do not work for this tas
 
 1. **Neighbour lists are sampled, not the full graph.** The resulting graph (avg. degree ≈ 2, 10.4% isolated) is orders of magnitude sparser than the real Twitter graph.
 2. **The `domain` label is a dataset-provided attribute of unclear provenance.** Domain-conditional findings are exploratory, not causal.
-3. **Three seeds is a thin variance estimate for GNN configs.** The 95% CI for GNN results spans approximately ±0.008 F1. Our GNN findings are indicative, not robust statistical claims.
+3. **Ten seeds provides improved variance estimates.** With 10 seeds per config, the 95% CI for GNN results spans approximately ±0.004 F1 for most configurations. This is a substantial improvement over a 3-seed analysis but still leaves small effect sizes (ΔF1 < 0.005) within noise range.
 4. **No temporal signal.** Tweet times, account creation dates relative to network formation, and chronologically ordered interactions could provide additional signal.
 5. **Community detection (Louvain) is one specific choice among several reasonable ones.** Different algorithms could change the topology feature set.
 6. **Per-domain sample sizes (267–343 test) are small.** Per-domain effect sizes of <0.02 F1 are within noise range at these sample sizes.
 7. **McNemar's test has limited power for small effect sizes on n=1183.** Our 'not significant' findings for small ΔF1 steps should not be overinterpreted — they may reflect insufficient power rather than true null effects.
 8. **The 0.5 homophily threshold is a pre-registered but arbitrary split.** The low vs high homophily bucket comparison is a single pre-registered test; we report it as is without threshold sweeping. Results at alternative thresholds or with different binning strategies may differ.
-9. **The HeteroSAGE variant is evaluated on the same 3 seeds as other models.** The McNemar significance results are based on a single seed (seed 42) rather than aggregated across seeds. The consistency of the directional pattern across all 3 seeds mitigates this concern.
+9. **McNemar tests use ensembled predictions.** Model-wise predicted probabilities are averaged across 10 seeds before thresholding; McNemar's test is then applied to the ensembled labels. This is standard practice and uses all available seed information, but the ensemble may underestimate per-seed prediction variance.
 10. **Multiple comparison burden in the heterophily analysis.** The bucket comparison (§6.4) reports p-values across low/high homophily splits, degree filters, and model comparisons (SAGE vs Hetero, MLP vs Hetero). None of the reported p-values survive Bonferroni correction for 8+ tests. The heterophily findings should be treated as exploratory mechanistic evidence, not confirmatory hypothesis tests.
 
 # 9. Conclusion
@@ -377,4 +383,4 @@ Key observations:
 - Zhu, J., Yan, Y., Zhao, L., Heimann, M., Akoglu, L., & Koutra, D. (2020). Beyond homophily in graph neural networks: Current limitations and effective designs. *NeurIPS 2020.*
 
 ---
-*Report generated on 2026-07-02 02:19. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*
+*Report generated on 2026-07-02 03:46. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*

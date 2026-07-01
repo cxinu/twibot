@@ -4,11 +4,9 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import f1_score, roc_auc_score, precision_recall_fscore_support
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 warnings.filterwarnings("ignore")
 
@@ -32,6 +30,10 @@ COLORS_CONFIG = {
     "DomainRelSAGE-All": "#E63946",
     "HeteroSAGE-Profile": "#7B2D8E",
     "HeteroSAGE-All": "#D62828",
+    "RGCN-All": "#4361EE",
+    "RGCN-Profile": "#7209B7",
+    "RGCN-Profile+Tweet": "#F72585",
+    "RGCN-Topo+Neighbour": "#4CC9F0",
 }
 
 GROUP_COLORS = {
@@ -46,6 +48,7 @@ GROUP_COLORS = {
     "RelSAGE": "#E9C46A",
     "DomainRelSAGE": "#E63946",
     "HeteroSAGE": "#D62828",
+    "RGCN": "#4361EE",
 }
 
 

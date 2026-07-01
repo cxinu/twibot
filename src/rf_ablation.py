@@ -10,8 +10,7 @@ from sklearn.metrics import (
     confusion_matrix, f1_score, roc_auc_score,
     precision_recall_fscore_support, ConfusionMatrixDisplay,
 )
-from sklearn.model_selection import StratifiedKFold
-from tqdm import tqdm
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -94,9 +93,6 @@ def main():
         X_train = build_X(groups)
         X_test = build_X_test(groups)
 
-        # 5-fold stratified CV
-        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        cv_scores = []
         clf = RandomForestClassifier(
             n_estimators=500, max_features="sqrt",
             class_weight="balanced", random_state=42, n_jobs=-1

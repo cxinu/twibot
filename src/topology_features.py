@@ -1,13 +1,10 @@
 import os
 import sys
 import json
-from collections import Counter
-
 import networkx as nx
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from sklearn.cluster import KMeans
 
 INPUT_PARQUET = "data/twibot-20/twibot_df.parquet"
 OUTPUT_FILE = "data/twibot-20/features_topology.npy"

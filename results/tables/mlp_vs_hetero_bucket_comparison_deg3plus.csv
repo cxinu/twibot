@@ -1,4 +1,4 @@
 comparison,bucket,n,mlp_f1,hetero_f1,delta_f1,delta_auc,mcnemar_p
-HeteroSAGE_vs_MLP_deg3plus,Low homophily (<0.5),150,0.8686±0.0031,0.8703±0.0093,0.0017,-0.0029,0.6830913983096086
-HeteroSAGE_vs_MLP_deg3plus,High homophily (>=0.5),160,0.8249±0.0077,0.8123±0.0021,-0.0126,-0.0077,0.6170750774519739
-HeteroSAGE_vs_MLP_deg3plus,Overall,310,0.8538±0.0052,0.8495±0.0042,-0.0043,0.0002,0.7518296340458492
+HeteroSAGE_vs_MLP_deg3plus,Low homophily (<0.5),150,0.8686±0.0031,0.8727±0.0137,0.0041,-0.0031,1.0
+HeteroSAGE_vs_MLP_deg3plus,High homophily (>=0.5),160,0.8249±0.0077,0.8118±0.0029,-0.0131,-0.0076,1.0
+HeteroSAGE_vs_MLP_deg3plus,Overall,310,0.8538±0.0052,0.8506±0.0071,-0.0032,0.0003,0.7518296340458492

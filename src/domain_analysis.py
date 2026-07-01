@@ -2,13 +2,10 @@ import json
 import os
 import sys
 import warnings
-from collections import Counter
-
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, roc_auc_score, precision_recall_fscore_support
-from scipy.stats import chi2_contingency
 from tqdm import tqdm
 import matplotlib
 matplotlib.use("Agg")
@@ -244,10 +241,6 @@ def main():
                 "p_value": round(p_val, 4),
                 "significant": sig,
             })
-
-    # GNN predictions - load from gnn_results.csv (metrics only, no stored predictions)
-    # We compare RF-based models here; GNN comparisons are discussed in the report
-    gnn_results_df = pd.read_csv(os.path.join(OUTPUT_DIR, "gnn_results.csv"))
 
     for comp_name, pred1, pred2 in comparisons:
         if len(pred1) != len(pred2) or len(pred1) == 0:
