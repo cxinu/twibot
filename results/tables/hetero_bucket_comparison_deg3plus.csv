@@ -1,0 +1,4 @@
+comparison,bucket,n,sage_f1,hetero_f1,delta_f1,delta_auc,mcnemar_p
+HeteroSAGE_vs_SAGE_deg3plus,Low homophily (<0.5),150,0.8616±0.0031,0.8725±0.0111,0.0109,0.0001,0.37109336952269756
+HeteroSAGE_vs_SAGE_deg3plus,High homophily (>=0.5),160,0.8067±0.0082,0.8143±0.0007,0.0076,-0.0085,0.47950012218695337
+HeteroSAGE_vs_SAGE_deg3plus,Overall,310,0.8420±0.0030,0.8517±0.0057,0.0097,-0.0052,0.4496917979688908

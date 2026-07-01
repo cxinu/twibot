@@ -13,6 +13,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import SAGEConv
 from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score, precision_recall_fscore_support, ConfusionMatrixDisplay
 from torch.optim import Adam
+from scipy.stats import chi2 as chi2_dist
 from tqdm import tqdm
 import matplotlib
 matplotlib.use("Agg")
@@ -57,6 +58,49 @@ class BotSAGE(nn.Module):
         self.conv1 = SAGEConv(in_dim, 128)
         self.bn1 = nn.BatchNorm1d(128)
         self.conv2 = SAGEConv(128, 64)
+        self.bn2 = nn.BatchNorm1d(64)
+        self.head = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1),
+        )
+
+    def forward(self, x, edge_index):
+        x = self.conv1(x, edge_index)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=0.4, training=self.training)
+        x = self.conv2(x, edge_index)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=0.4, training=self.training)
+        x = self.head(x)
+        return torch.sigmoid(x).squeeze(-1)
+
+
+class HeteroSAGEConv(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.W1 = nn.Linear(in_dim, out_dim)
+        self.W2 = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x, edge_index):
+        src, dst = edge_index
+        N = x.size(0)
+        mean_neigh = torch.zeros_like(x)
+        count = torch.zeros(N, 1, device=x.device, dtype=x.dtype)
+        mean_neigh.index_add_(0, dst, x[src])
+        count.index_add_(0, dst, torch.ones(src.size(0), 1, device=x.device, dtype=x.dtype))
+        mean_neigh = mean_neigh / count.clamp(min=1)
+        return self.W1(x) + self.W2(x - mean_neigh)
+
+
+class BotHeteroSAGE(nn.Module):
+    def __init__(self, in_dim):
+        super().__init__()
+        self.conv1 = HeteroSAGEConv(in_dim, 128)
+        self.bn1 = nn.BatchNorm1d(128)
+        self.conv2 = HeteroSAGEConv(128, 64)
         self.bn2 = nn.BatchNorm1d(64)
         self.head = nn.Sequential(
             nn.Linear(64, 32),
@@ -282,6 +326,55 @@ def evaluate(model, data, test_mask, model_type, node_features=None, device="cpu
     }
 
 
+def compute_per_node_homophily(y, edge_index):
+    labeled = y >= 0
+    src, dst = edge_index
+    both = labeled[src] & labeled[dst]
+    src_l, dst_l = src[both], dst[both]
+    same = (y[src_l] == y[dst_l]).float()
+    N = y.size(0)
+    deg = torch.zeros(N, device=y.device, dtype=torch.float)
+    same_count = torch.zeros(N, device=y.device, dtype=torch.float)
+    deg.index_add_(0, dst_l, torch.ones_like(same))
+    same_count.index_add_(0, dst_l, same)
+    homo = torch.where(deg > 0, same_count / deg, torch.tensor(-1.0, device=y.device))
+    return homo, deg.long()
+
+
+def mcnemar_pvalue(y_true, y_pred1, y_pred2):
+    c01 = ((y_pred1 != y_true) & (y_pred2 == y_true)).sum()
+    c10 = ((y_pred1 == y_true) & (y_pred2 != y_true)).sum()
+    n = c01 + c10
+    if n == 0:
+        return 1.0
+    chi2_stat = (abs(c01 - c10) - 1) ** 2 / n
+    return float(chi2_dist.sf(chi2_stat, 1))
+
+
+def bucket_eval(y_true_list, y_pred_list, y_prob_list, bucket_idx, label):
+    n = len(bucket_idx)
+    if n == 0:
+        return None
+    f1s, aucs = [], []
+    for s in range(len(y_true_list)):
+        yt = y_true_list[s][bucket_idx]
+        yp = y_pred_list[s][bucket_idx]
+        ypr = y_prob_list[s][bucket_idx]
+        f1s.append(f1_score(yt, yp, average="macro"))
+        if len(set(yt.tolist())) > 1:
+            aucs.append(roc_auc_score(yt, ypr))
+        else:
+            aucs.append(0.0)
+    return {
+        "bucket": label,
+        "n": n,
+        "f1_macro_mean": round(float(np.mean(f1s)), 4),
+        "f1_macro_std": round(float(np.std(f1s)), 4),
+        "auc_mean": round(float(np.mean(aucs)), 4),
+        "auc_std": round(float(np.std(aucs)), 4),
+    }
+
+
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(FIGURE_DIR, exist_ok=True)
@@ -327,6 +420,20 @@ def main():
 
     print(f"Train: {train_mask.sum()}, Val: {val_mask.sum()}, Test: {test_mask.sum()}")
 
+    # Per-node homophily on the merged undirected graph (same edge_index HeteroSAGE will use)
+    node_homophily, node_deg = compute_per_node_homophily(data.y, data.edge_index)
+    test_homo = node_homophily[test_mask]
+    test_deg = node_deg[test_mask]
+    test_valid = test_homo >= 0
+    print(f"\nHomophily diagnostic (on edge_index used by SAGE/HeteroSAGE):")
+    print(f"  Test nodes with degree>0: N={test_valid.sum().item()}, "
+          f"mean homophily={test_homo[test_valid].mean().item():.4f}, "
+          f"%<0.5={(test_homo[test_valid] < 0.5).float().mean().item()*100:.1f}%")
+    print(f"  Test node degree: mean={test_deg[test_valid].float().mean().item():.2f}, "
+          f"% deg=1={(test_deg[test_valid] == 1).float().mean().item()*100:.1f}%")
+
+    pairwise_store = {}
+
     # Config definitions
     configs = [
         {
@@ -368,6 +475,20 @@ def main():
             "name": "DomainRelSAGE-All",
             "model_class": DomainRelBotSAGE,
             "model_type": "domain_relsage",
+            "in_dim": all_dim,
+            "features": x_all,
+        },
+        {
+            "name": "HeteroSAGE-Profile",
+            "model_class": BotHeteroSAGE,
+            "model_type": "sage",
+            "in_dim": profile_dim,
+            "features": x_profile,
+        },
+        {
+            "name": "HeteroSAGE-All",
+            "model_class": BotHeteroSAGE,
+            "model_type": "sage",
             "in_dim": all_dim,
             "features": x_all,
         },
@@ -421,6 +542,14 @@ def main():
         all_results.append(mean_row)
         print(f"  Mean: F1={mean_row['f1_macro_mean']:.4f}±{mean_row['f1_macro_std']:.4f}, AUC={mean_row['auc_mean']:.4f}±{mean_row['auc_std']:.4f}")
 
+        if name in ("SAGE-All", "HeteroSAGE-All"):
+            pairwise_store[name] = {
+                "y_true": deepcopy(all_y_true),
+                "y_pred": deepcopy(all_y_pred),
+                "y_prob": deepcopy(all_y_prob),
+                "metrics": deepcopy(seed_metrics),
+            }
+
         # Confusion matrix (first seed)
         cm = confusion_matrix(all_y_true[0], all_y_pred[0])
         fig, ax = plt.subplots(figsize=(5, 4))
@@ -466,6 +595,86 @@ def main():
     results_df.to_csv(os.path.join(OUTPUT_DIR, "gnn_results.csv"), index=False)
     print(f"\nSaved {os.path.join(OUTPUT_DIR, 'gnn_results.csv')}")
     print(results_df.to_string(index=False))
+
+    # ---- Conditional bucket evaluation: SAGE-All vs HeteroSAGE-All ----
+    if "SAGE-All" in pairwise_store and "HeteroSAGE-All" in pairwise_store:
+        print(f"\n{'='*60}")
+        print("Conditional evaluation: SAGE-All vs HeteroSAGE-All")
+        print("Pre-registered split threshold: per-node homophily < 0.5 (low) vs >= 0.5 (high)")
+        print()
+
+        sage = pairwise_store["SAGE-All"]
+        hetero = pairwise_store["HeteroSAGE-All"]
+
+        test_idx_np = torch.where(test_mask.cpu())[0].numpy()
+        test_homo_np = node_homophily[test_mask].cpu().numpy()
+        test_deg_np = node_deg[test_mask].cpu().numpy()
+        valid = test_homo_np >= 0
+
+        for min_deg, suffix in [(0, ""), (3, "_deg3plus")]:
+            deg_ok = test_deg_np >= min_deg
+            bucket_valid = valid & deg_ok
+
+            low = np.where((test_homo_np < 0.5) & bucket_valid)[0]
+            high = np.where((test_homo_np >= 0.5) & bucket_valid)[0]
+            overall = np.where(bucket_valid)[0]
+
+            label = f"  Bucket comparison (deg>={min_deg}):"
+            print(label)
+            header = f"  {'Bucket':<22} {'N':>6} {'SAGE F1':>14} {'Hetero F1':>14} {'ΔF1':>8} {'McNemar p':>10}"
+            print(header)
+            print("  " + "-" * len(header))
+
+            rows = []
+            for b_idx, b_name in [(low, "Low homophily (<0.5)"),
+                                   (high, "High homophily (>=0.5)"),
+                                   (overall, "Overall")]:
+                if len(b_idx) == 0:
+                    continue
+
+                s_eval = bucket_eval(sage["y_true"], sage["y_pred"], sage["y_prob"], b_idx, b_name)
+                h_eval = bucket_eval(hetero["y_true"], hetero["y_pred"], hetero["y_prob"], b_idx, b_name)
+                if s_eval is None or h_eval is None:
+                    continue
+
+                delta = round(h_eval["f1_macro_mean"] - s_eval["f1_macro_mean"], 4)
+
+                p_val = mcnemar_pvalue(
+                    sage["y_true"][0][b_idx],
+                    sage["y_pred"][0][b_idx],
+                    hetero["y_pred"][0][b_idx],
+                )
+
+                print(f"  {b_name:<22} {s_eval['n']:>6}  "
+                      f"{s_eval['f1_macro_mean']:.4f}±{s_eval['f1_macro_std']:.4f}  "
+                      f"{h_eval['f1_macro_mean']:.4f}±{h_eval['f1_macro_std']:.4f}  "
+                      f"{delta:+8.4f}  {p_val:.4f}")
+
+                rows.append({
+                    "comparison": f"HeteroSAGE_vs_SAGE{suffix}",
+                    "bucket": b_name,
+                    "n": s_eval["n"],
+                    "sage_f1": f"{s_eval['f1_macro_mean']:.4f}±{s_eval['f1_macro_std']:.4f}",
+                    "hetero_f1": f"{h_eval['f1_macro_mean']:.4f}±{h_eval['f1_macro_std']:.4f}",
+                    "delta_f1": delta,
+                    "delta_auc": round(h_eval["auc_mean"] - s_eval["auc_mean"], 4),
+                    "mcnemar_p": p_val,
+                })
+
+            print(f"\n  Degree stats (deg>={min_deg}):")
+            for b_idx, b_name in [(low, "Low homophily"), (high, "High homophily"), (overall, "Overall")]:
+                if len(b_idx) == 0:
+                    continue
+                degs = test_deg_np[b_idx]
+                print(f"  {b_name:<22}: N={len(b_idx):>5}, "
+                      f"mean_deg={degs.mean():.2f}, "
+                      f"deg1={((degs==1).sum())/len(b_idx)*100:.0f}%, "
+                      f"deg>=3={((degs>=3).sum())/len(b_idx)*100:.0f}%")
+
+            bucket_df = pd.DataFrame(rows)
+            bucket_df.to_csv(os.path.join(OUTPUT_DIR, f"hetero_bucket_comparison{suffix}.csv"), index=False)
+
+        print(f"\nSaved bucket comparison tables.")
 
 
 if __name__ == "__main__":

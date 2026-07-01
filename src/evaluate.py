@@ -30,6 +30,8 @@ COLORS_CONFIG = {
     "SAGE-All": "#6A994E",
     "RelSAGE-All": "#E9C46A",
     "DomainRelSAGE-All": "#E63946",
+    "HeteroSAGE-Profile": "#7B2D8E",
+    "HeteroSAGE-All": "#D62828",
 }
 
 GROUP_COLORS = {
@@ -43,6 +45,7 @@ GROUP_COLORS = {
     "SAGE": "#6A994E",
     "RelSAGE": "#E9C46A",
     "DomainRelSAGE": "#E63946",
+    "HeteroSAGE": "#D62828",
 }
 
 
@@ -144,6 +147,48 @@ def main():
     plt.savefig(os.path.join(FIGURE_DIR, "fig_main_comparison.png"), dpi=150)
     plt.close()
     print("Saved fig_main_comparison.png")
+
+    # Bucket comparison figure
+    bucket_path = os.path.join(OUTPUT_DIR, "hetero_bucket_comparison.csv")
+    if os.path.exists(bucket_path):
+        print("\nPlotting bucket comparison...")
+        bdf = pd.read_csv(bucket_path)
+        bdf_plot = bdf[bdf["bucket"] != "Overall"]
+
+        def parse_mean(s):
+            return float(s.split('±')[0])
+        def parse_std(s):
+            return float(s.split('±')[1])
+
+        buckets = bdf_plot["bucket"].values
+        sage_m = [parse_mean(v) for v in bdf_plot["sage_f1"]]
+        sage_s = [parse_std(v) for v in bdf_plot["sage_f1"]]
+        hetero_m = [parse_mean(v) for v in bdf_plot["hetero_f1"]]
+        hetero_s = [parse_std(v) for v in bdf_plot["hetero_f1"]]
+
+        x = np.arange(len(buckets))
+        width = 0.35
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.bar(x - width / 2, sage_m, width, yerr=sage_s,
+               label="SAGE-All", color="#6A994E", capsize=3)
+        ax.bar(x + width / 2, hetero_m, width, yerr=hetero_s,
+               label="HeteroSAGE-All", color="#D62828", capsize=3)
+        ax.set_xticks(x)
+        ax.set_xticklabels(buckets, fontsize=10)
+        ax.set_ylabel("F1 Macro", fontsize=11)
+        ax.set_title("SAGE-All vs HeteroSAGE-All by Homophily Bucket", fontsize=11)
+        ax.legend(fontsize=9)
+        ax.set_ylim(0.75, 0.90)
+        for i, (_, row) in enumerate(bdf_plot.iterrows()):
+            y_max = max(sage_m[i] + sage_s[i], hetero_m[i] + hetero_s[i])
+            ax.text(i, y_max + 0.008, f"p={row['mcnemar_p']:.3f}",
+                    ha="center", fontsize=8, fontstyle="italic")
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIGURE_DIR, "fig_bucket_comparison.png"), dpi=150)
+        plt.close()
+        print("  Saved fig_bucket_comparison.png")
+    else:
+        print("\n  Skipping bucket comparison plot: hetero_bucket_comparison.csv not found")
 
     # Per-domain scatter overlay with GNN results
     print("\nPer-domain F1 breakdowns:")
