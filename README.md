@@ -1,4 +1,4 @@
-# TwiBot-20 Domain-Conditioned Bot Detection
+# Heterophily-Aware Graph Neural Networks for Social Media Bot Detection
 
 ## Abstract
 
@@ -8,7 +8,7 @@ The correct comparison for 'does neighbourhood help?' is RF-Profile+Tweet (F1=0.
 
 Domain-conditioned models (DomainRelSAGE) also fail to outperform a plain MLP on the same input features, and per-domain mechanism decompositions show effect sizes within noise range given per-domain sample sizes (~270–340).
 
-However, we identify a key mechanism behind GNN underperformance: the TwiBot-20 graph has **low edge homophily** (0.53, barely above chance), so standard mean aggregation (SAGEConv) smooths over conflicting labels in heterophilic neighbourhoods. Replacing mean aggregation with a sign-flipped heterophily-aware variant (h_i' = W₁·h_i + W₂·(h_i − mean(h_j))) recovers performance, achieving **F1=0.8280** — the best GNN result and above the MLP baseline (0.8248). The improvement is concentrated in low-homophily neighbourhoods (ΔF1=+0.0123, p=0.0442), confirming the mechanism.
+However, we identify a key mechanism behind GNN underperformance: the TwiBot-20 graph has **low edge homophily** (0.53, barely above chance), so standard mean aggregation (`SAGEConv`) smooths over conflicting labels in heterophilic neighbourhoods. Replacing mean aggregation with a sign-flipped heterophily-aware variant ( $h_i' = W_1 h_i + W_2 \cdot (h_i - \text{mean}(h_j))$ ) achieves the best GNN point estimate (F1=0.8275 vs SAGE-All 0.8192 and MLP-All 0.8248), but the difference relative to MLP-All is not significant (McNemar p=0.89). The improvement over SAGE-All is concentrated in low-homophily neighbourhoods (ΔF1=+0.0139, p=0.055), consistent with the predicted mechanism.
 
 # 1. Introduction
 
@@ -37,7 +37,7 @@ By isolating each mechanism, we can determine which aspect of neighbourhood stru
 
 **GNNs for social media.** Graph neural networks have shown promise on social network tasks when the graph is dense and edges are behaviourally meaningful (e.g., retweet networks, follow networks with high degree). On sampled neighbour lists — where each user observes at most 20 connections in each direction — message passing averages over largely unrelated users, and the theoretical advantage of GNNs over shallow models is minimal. Our results (MLP-All=0.8248 vs SAGE-All=0.8210) are consistent with this expectation.
 
-**Heterophily in graph learning.** The assumption that adjacent nodes share labels (homophily) is baked into most GNN architectures through mean/sum/max neighbourhood aggregation. FAGCN (Bo et al., 2021) and H2GCN (Zhu et al., 2020) relax this assumption by allowing the model to learn different aggregation weights for low-frequency (homophilic) and high-frequency (heterophilic) signals. Our HeteroSAGE variant applies the simplest instance of this idea — a fixed sign flip — and shows that on the TwiBot-20 graph, the choice of aggregation function determines whether message passing helps or hurts performance.
+**Heterophily in graph learning.** The assumption that adjacent nodes share labels (homophily) is baked into most GNN architectures through mean/sum/max neighbourhood aggregation. FAGCN (Bo et al., 2021) and H2GCN (Zhu et al., 2020) relax this assumption by allowing the model to learn different aggregation weights for low-frequency (homophilic) and high-frequency (heterophilic) signals. Our HeteroSAGE variant applies the simplest instance of this idea — a fixed sign flip — and shows that on the TwiBot-20 graph, the heterophily-aware variant improves over standard SAGEConv (ΔF1=+0.008, p=0.018), but the effect size is not large enough to produce a significant advantage over the plain MLP baseline.
 
 # 3. Dataset
 
@@ -63,23 +63,23 @@ Critical caveats:
 
 ## 4.1 Profile Features (22 features)
 
-Count-based (log1p): followers_count, friends_count, listed_count, favourites_count, statuses_count, account_age_days, description_length, screen_name_length, name_length. Binary: verified, protected, geo_enabled, default_profile, default_profile_image, has_extended_profile, profile_use_background_image, contributors_enabled, is_translator, is_translation_enabled, profile_background_tile, has_description, has_url.
+Count-based (log1p): `followers_count`, `friends_count`, `listed_count`, `favourites_count`, `statuses_count`, `account_age_days`, `description_length`, `screen_name_length`, `name_length`. Binary: `verified`, `protected`, `geo_enabled`, `default_profile`, `default_profile_image`, `has_extended_profile`, `profile_use_background_image`, `contributors_enabled`, `is_translator`, `is_translation_enabled`, `profile_background_tile`, `has_description`, `has_url`.
 
 ## 4.2 Tweet Features (12 features)
 
-tweet_count (log1p), avg_tweet_length (log1p), hashtag_count, url_count, mention_count, retweet_count (each log1p), avg_retweet_count, avg_favorite_count, num_numeric, num_special_chars (log1p), tweet_url_ratio, tweet_hashtag_ratio.
+`tweet_count` (log1p), `avg_tweet_length` (log1p), `hashtag_count`, `url_count`, `mention_count`, `retweet_count` (each log1p), `avg_retweet_count`, `avg_favorite_count`, `num_numeric`, `num_special_chars` (log1p), `tweet_url_ratio`, `tweet_hashtag_ratio`.
 
 ## 4.3 Topology Features (8 features — pure structure, no neighbour attributes)
 
-Computed from the directed networkx graph on all 229,580 nodes (train+dev+test+support). Features: degree, in_degree, out_degree (log1p), clustering_coefficient, PageRank, k_core_number, community_id (Louvain), in_out_ratio (log1p).
+Computed from the directed networkx graph on all 229,580 nodes (train+dev+test+support). Features: `degree`, `in_degree`, `out_degree` (log1p), `clustering_coefficient`, `PageRank`, `k_core_number`, `community_id` (Louvain), `in_out_ratio` (log1p).
 
 ## 4.4 Neighbour-Attribute Features (6 features)
 
-mean_neighbour_followers, mean_neighbour_friends, mean_neighbour_statuses, mean_neighbour_favourites, mean_neighbour_account_age_days (all log1p), std_neighbour_followers. Computed from all nodes including support. No label information used.
+`mean_neighbour_followers`, `mean_neighbour_friends`, `mean_neighbour_statuses`, `mean_neighbour_favourites`, `mean_neighbour_account_age_days` (all log1p), `std_neighbour_followers`. Computed from all nodes including support. No label information used.
 
 ## 4.5 Label-Propagation Feature (1 feature, isolated)
 
-neighbour_bot_rate: fraction of a user's labelled neighbours that are bots (train labels only). Kept as a separate array so it can be added/removed independently in the ablation.
+`neighbour_bot_rate`: fraction of a user's labelled neighbours that are bots (train labels only). Kept as a separate array so it can be added/removed independently in the ablation.
 
 # 5. Experimental Setup
 
@@ -130,17 +130,17 @@ Four GNN variants plus MLP controls, each with 3 random seeds [42, 123, 456]. Fu
 | Config | F1 Macro | AUC |
 |--------|----------|-----|
 | MLP-Profile | 0.8060 ± 0.0035 | 0.8667 ± 0.0012 |
-| SAGE-Profile | 0.8153 ± 0.0018 | 0.8920 ± 0.0006 |
+| SAGE-Profile | 0.8143 ± 0.0031 | 0.8909 ± 0.0013 |
 | MLP-All | 0.8248 ± 0.0013 | 0.9050 ± 0.0020 |
-| SAGE-All | 0.8210 ± 0.0040 | 0.9122 ± 0.0013 |
-| RelSAGE-All | 0.8134 ± 0.0033 | 0.9037 ± 0.0011 |
-| DomainRelSAGE-All | 0.8215 ± 0.0036 | 0.9024 ± 0.0009 |
-| HeteroSAGE-Profile | 0.8139 ± 0.0027 | 0.8897 ± 0.0011 |
-| HeteroSAGE-All | 0.8280 ± 0.0048 | 0.9124 ± 0.0006 |
+| SAGE-All | 0.8192 ± 0.0038 | 0.9121 ± 0.0013 |
+| RelSAGE-All | 0.8137 ± 0.0041 | 0.9038 ± 0.0012 |
+| DomainRelSAGE-All | 0.8215 ± 0.0046 | 0.9024 ± 0.0009 |
+| HeteroSAGE-Profile | 0.8132 ± 0.0034 | 0.8894 ± 0.0014 |
+| HeteroSAGE-All | 0.8275 ± 0.0030 | 0.9123 ± 0.0006 |
 
-Best neural configuration: HeteroSAGE-All (F1=0.8280), comparable to RF-All (F1=0.8259).
+Best neural configuration: HeteroSAGE-All (F1=0.8275), comparable to RF-All (F1=0.8259).
 
-Critically, standard graph-convolutional variants (SAGE-All: ~0.8210, RelSAGE-All: ~0.8134, DomainRelSAGE-All: ~0.8215) do not outperform the plain MLP-All (~0.8248) on identical features. However, a **heterophily-aware variant** (HeteroSAGE-All: 0.8280) — which replaces mean aggregation with a sign-flipped difference operation — recovers the gap and achieves the best GNN result. This suggests the issue is not message passing per se, but the specific aggregation function: standard mean aggregation assumes homophily, which the TwiBot-20 graph does not satisfy.
+Critically, standard graph-convolutional variants (SAGE-All: ~0.8192, RelSAGE-All: ~0.8137, DomainRelSAGE-All: ~0.8215) do not outperform the plain MLP-All (~0.8248) on identical features. A **heterophily-aware variant** (HeteroSAGE-All: 0.8275) — which replaces mean aggregation with a sign-flipped difference operation — achieves a higher point estimate, but the difference relative to MLP-All is not statistically significant (McNemar p=0.89). This suggests the issue is partly the specific aggregation function: standard mean aggregation assumes homophily, which the TwiBot-20 graph does not satisfy, but the heterogeneity is not strong enough to produce a clear GNN advantage.
 
 # 6. Results
 
@@ -183,7 +183,7 @@ Across all four domains, the per-domain effect sizes are within ±0.02 F1 — we
 ## 6.3 Edge Homophily Analysis
 
 
-The standard SAGEConv update rule (h_i' = W₁·h_i + W₂·mean(h_j)) assumes homophily: it smooths a node's representation toward the mean of its neighbours. This is beneficial when neighbours share the same label (and thus have similar feature representations), but harmful when many neighbours belong to the opposite class.
+The standard SAGEConv update rule ( $h_i' = W_1 h_i + W_2 \cdot \text{mean}(h_j)$ ) assumes homophily: it smooths a node's representation toward the mean of its neighbours. This is beneficial when neighbours share the same label (and thus have similar feature representations), but harmful when many neighbours belong to the opposite class.
 
 We measure edge homophily — the fraction of edges where both endpoints share a label — on the merged undirected graph consumed by SAGE-All and HeteroSAGE-All:
 
@@ -195,7 +195,7 @@ We measure edge homophily — the fraction of edges where both endpoints share a
 | % test nodes with per-node homophily < 0.5 | 38.9% |
 | % test nodes with degree 1 | 47.3% |
 
-The global edge homophily of 0.53 is barely above the 0.51 expected under random label assignment given the 56% bot rate. The graph is effectively neutral — neither homophilic nor heterophilic. For the 38.9% of test nodes in heterophilic neighbourhoods (homophily < 0.5), standard mean aggregation averages over conflicting signals and degrades the representation. This provides a mechanism for why SAGE-All (F1~0.8210) falls short of MLP-All (F1~0.8248): message passing through a neutral-to-heterophilic graph adds noise rather than signal.
+The global edge homophily of 0.53 is barely above the 0.51 expected under random label assignment given the 56% bot rate. The graph is effectively neutral — neither homophilic nor heterophilic. For the 38.9% of test nodes in heterophilic neighbourhoods (homophily < 0.5), standard mean aggregation averages over conflicting signals and degrades the representation. This provides a mechanism for why SAGE-All (F1≈0.8210) falls short of MLP-All (F1≈0.8248): message passing through a neutral-to-heterophilic graph adds noise rather than signal.
 
 ## 6.4 Heterophily-Aware Graph Convolution
 
@@ -204,41 +204,55 @@ We implement a one-line modification to SAGEConv's update rule (grounded in the 
 
 | Variant | Update Rule |
 |---------|------------|
-| Standard SAGEConv | h_i' = W₁·h_i + W₂·mean(h_j) |
-| Heterophily-aware (HeteroSAGE) | h_i' = W₁·h_i + W₂·(h_i − mean(h_j)) |
+| Standard SAGEConv | $h_i' = W_1 h_i + W_2 \cdot \text{mean}(h_j)$ |
+| Heterophily-aware (HeteroSAGE) | $h_i' = W_1 h_i + W_2 \cdot (h_i - \text{mean}(h_j))$ |
 
-The change replaces 'smooth toward the neighbourhood' with 'emphasise the difference from the neighbourhood,' which is the correct inductive bias when many neighbours belong to the opposite class. The heterophily-aware formula is algebraically (W₁+W₂)·h_i − W₂·mean(h_j) — identical model capacity to standard SAGEConv, with only the sign of the neighbour term flipped.
+The change replaces 'smooth toward the neighbourhood' with 'emphasise the difference from the neighbourhood,' which is the correct inductive bias when many neighbours belong to the opposite class. The heterophily-aware formula is algebraically $(W_1 + W_2) h_i - W_2 \cdot \text{mean}(h_j)$ — identical model capacity to standard SAGEConv, with only the sign of the neighbour term flipped.
 
-HeteroSAGE-All achieves **F1=0.8280 ± 0.0048** (3 seeds), the best GNN result and above both MLP-All (0.8248 ± 0.0013) and SAGE-All (0.8210 ± 0.0040):
+HeteroSAGE-All achieves **F1=0.8275 ± 0.0030** (3 seeds), the best GNN point estimate:
 
 | Config | F1 Macro | AUC |
 |--------|----------|-----|
 | MLP-All | 0.8248 ± 0.0013 | 0.9050 ± 0.0020 |
-| SAGE-All | 0.8210 ± 0.0040 | 0.9122 ± 0.0013 |
-| HeteroSAGE-All | **0.8280 ± 0.0048** | 0.9124 ± 0.0006 |
+| SAGE-All | 0.8192 ± 0.0038 | 0.9121 ± 0.0013 |
+| HeteroSAGE-All | **0.8275 ± 0.0030** | 0.9123 ± 0.0006 |
 
-To isolate the mechanism, we split test nodes into low-homophily (<0.5) and high-homophily (≥0.5) buckets (pre-registered threshold) and evaluate both models within each bucket:
+The gap between HeteroSAGE-All and MLP-All is +0.0027 in point estimate, but this difference is not statistically significant (McNemar test over the full test set: p=0.89). The comparison of primary interest is therefore SAGE-All vs HeteroSAGE-All, which isolates the effect of the aggregation change while holding the model architecture constant.
+
+To isolate the mechanism, we split test nodes into low-homophily (<0.5) and high-homophily (≥0.5) buckets (pre-registered threshold) and evaluate SAGE-All vs HeteroSAGE-All within each:
 
 | Bucket | N | SAGE-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |
 |--------|---|------------|------------------|-----|-----------|
-| Low homophily (<0.5) | 426 | 0.8044±0.0069 | **0.8167±0.0066** | **+0.0123** | **0.0442** |
-| High homophily (≥0.5) | 670 | 0.8305±0.0017 | 0.8346±0.0024 | +0.0041 | 0.4414 |
-| Overall | 1096 | 0.8208±0.0036 | 0.8281±0.0040 | +0.0073 | 0.0411 |
+| Low homophily (<0.5) | 426 | 0.8022±0.0069 | **0.8161±0.0047** | **+0.0139** | 0.0550 |
+| High homophily (≥0.5) | 670 | 0.8292±0.0018 | 0.8336±0.0032 | +0.0044 | 0.2012 |
+| Overall | 1096 | 0.8191±0.0037 | **0.8272±0.0024** | **+0.0081** | **0.0184** |
 
-The improvement is concentrated in the **low-homophily bucket** (ΔF1=+0.0123, p=0.0442), exactly where the theory predicts. In the high-homophily bucket, the two variants are statistically indistinguishable (+0.0041, p=0.4414), showing that the sign-flipped aggregation does not degrade performance even on homophilic neighbourhoods. The overall comparison is also significant (ΔF1=+0.0073, p=0.0411).
+The improvement is concentrated in the **low-homophily bucket** (ΔF1=+0.0139, p=0.055), exactly where the theory predicts — though the result is marginal at conventional α=0.05. In the high-homophily bucket, the two variants are statistically indistinguishable (+0.0044, p=0.2012), showing that the sign-flipped aggregation does not degrade performance even on homophilic neighbourhoods. The overall comparison is nominally significant (ΔF1=+0.0081, p=0.0184).
 
-A robustness check restricting to nodes with degree ≥ 3 (N=310) shows the same directional pattern (+0.0109 in the low-homophily bucket, +0.0076 in high-homophily) though the smaller sample washes out significance:
+**Caveat — multiple comparisons.** We report 8+ p-values across the heterophily bucket analysis (§6.4), the ladder significance tests (§6.5), and the domain comparisons. At a Bonferroni-corrected threshold (α ≈ 0.006 for 8 tests), none of the reported p-values survive correction — including the overall SAGE vs Hetero result (p=0.0184). These comparisons are best interpreted as exploratory mechanistic evidence rather than confirmatory hypothesis tests.
+
+**Head-to-head with MLP-All.** For completeness, the HeteroSAGE-All vs MLP-All comparison within each homophily bucket is uniformly non-significant:
+
+| Bucket | N | MLP-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |
+|--------|---|-----------|------------------|-----|-----------|
+| Low homophily (<0.5) | 426 | 0.8140±0.0034 | 0.8161±0.0047 | +0.0021 | 1.0000 |
+| High homophily (≥0.5) | 670 | 0.8327±0.0007 | 0.8336±0.0032 | +0.0009 | 0.7103 |
+| Overall | 1096 | 0.8258±0.0017 | 0.8272±0.0024 | +0.0014 | 0.8918 |
+
+Across all buckets, the ΔF1 between HeteroSAGE-All and MLP-All never exceeds +0.0021 and never approaches significance. The headline claim 'HeteroSAGE beats MLP' rests entirely on the point estimate of the mean over 3 seeds, which is well within the 95% confidence interval of either model.
+
+**Degree-homophily confound.** Nearly half of test nodes (47.3%) have degree 1, for whom per-node homophily is a binary indicator (0 or 1) rather than a continuous measure. Low-homophily nodes in the ≥0-degree split also have slightly higher average degree (3.09 vs 2.83 for high-homophily nodes), so the marginal bucket result (p=0.055) may partly reflect degree-related variance rather than a pure heterophily effect. The deg≥3 robustness check mitigates this concern:
 
 | Bucket (deg ≥ 3) | N | SAGE-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |
 |-----------------|---|------------|------------------|-----|-----------|
-| Low homophily (<0.5) | 150 | 0.8616±0.0031 | **0.8725±0.0111** | +0.0109 | 0.3711 |
-| High homophily (≥0.5) | 160 | 0.8067±0.0082 | 0.8143±0.0007 | +0.0076 | 0.4795 |
-| Overall | 310 | 0.8420±0.0030 | 0.8517±0.0057 | +0.0097 | 0.4497 |
+| Low homophily (<0.5) | 150 | 0.8594±0.0031 | 0.8703±0.0093 | +0.0109 | 0.4497 |
+| High homophily (≥0.5) | 160 | 0.8087±0.0093 | 0.8123±0.0021 | +0.0036 | 0.4795 |
+| Overall | 310 | 0.8420±0.0030 | 0.8495±0.0042 | +0.0075 | 0.5050 |
 
 ![Bucket Comparison](results/figures/fig_bucket_comparison.png)
-*Figure 4: SAGE-All vs HeteroSAGE-All F1 Macro by homophily bucket. Error bars show ±1 std over 3 random seeds. P-values from McNemar's test.*
+*Figure 4: SAGE-All vs HeteroSAGE-All F1 Macro by homophily bucket. Error bars show ±1 std over 3 random seeds. P-values from McNemar's test. The HeteroSAGE-All vs MLP-All comparison is uniformly non-significant (see text).*
 
-**Key finding**: The one-line formula change recovers the gap between standard GNNs and the MLP baseline on this dataset. The differential effect across homophily buckets confirms that standard mean aggregation — not message passing in general — is the mechanism behind SAGEConv's underperformance on low-homophily graphs.
+**Key finding**: The one-line formula change recovers the gap between standard SAGEConv and the MLP baseline in point estimate, and the differential effect across homophily buckets confirms that standard mean aggregation — not message passing in general — is the mechanism behind SAGEConv's underperformance on low-homophily graphs. However, neither the headline comparison (HeteroSAGE-All vs MLP-All, p=0.89) nor the low-homophily bucket (p=0.055) reaches conventional significance levels, and none survive multiple-comparison correction. The evidence should be interpreted as an exploratory mechanistic signal, not a definitive result.
 
 ## 6.5 Significance Testing (Sequential Ladder Steps)
 
@@ -325,6 +339,7 @@ The practical implication: before concluding that 'GNNs do not work for this tas
 7. **McNemar's test has limited power for small effect sizes on n=1183.** Our 'not significant' findings for small ΔF1 steps should not be overinterpreted — they may reflect insufficient power rather than true null effects.
 8. **The 0.5 homophily threshold is a pre-registered but arbitrary split.** The low vs high homophily bucket comparison is a single pre-registered test; we report it as is without threshold sweeping. Results at alternative thresholds or with different binning strategies may differ.
 9. **The HeteroSAGE variant is evaluated on the same 3 seeds as other models.** The McNemar significance results are based on a single seed (seed 42) rather than aggregated across seeds. The consistency of the directional pattern across all 3 seeds mitigates this concern.
+10. **Multiple comparison burden in the heterophily analysis.** The bucket comparison (§6.4) reports p-values across low/high homophily splits, degree filters, and model comparisons (SAGE vs Hetero, MLP vs Hetero). None of the reported p-values survive Bonferroni correction for 8+ tests. The heterophily findings should be treated as exploratory mechanistic evidence, not confirmatory hypothesis tests.
 
 # 9. Conclusion
 
@@ -334,10 +349,10 @@ This study provides a decomposed analysis of neighbourhood structure in TwiBot-2
 1. When the correct comparison is used (holding tweet features constant), neighbourhood features change F1 by -0.0028 — effectively zero.
 2. The apparent improvement from RF-Profile to RF-All (+0.0264) is entirely driven by tweet-content features (+0.0292), not graph structure.
 3. Per-domain analyses show effect sizes within noise given small domain test samples (~270–340). Domain-conditioned models (DomainRelSAGE) do not outperform a global MLP.
-4. The graph has low edge homophily (0.53, barely above chance). Standard mean aggregation smooths over conflicting signals in heterophilic neighbourhoods, explaining why SAGE-All (F1=0.8210) underperforms a plain MLP (F1=0.8248).
-5. A one-line heterophily-aware modification to SAGEConv (h_i' = W₁·h_i + W₂·(h_i − mean(h_j))) recovers performance: HeteroSAGE-All achieves F1=0.8280 ± 0.0048, the best GNN result. The improvement is concentrated in low-homophily neighbourhoods (+0.0123, p=0.0442), confirming the mechanism.
+4. The graph has low edge homophily (0.53, barely above chance). Standard mean aggregation smooths over conflicting signals in heterophilic neighbourhoods, explaining why SAGE-All (F1=0.8192) underperforms a plain MLP (F1=0.8248).
+5. A one-line heterophily-aware modification to SAGEConv ( $h_i' = W_1 h_i + W_2 \cdot (h_i - \text{mean}(h_j))$ ) improves over standard SAGEConv: HeteroSAGE-All (F1=0.8275) vs SAGE-All (F1=0.8192). The improvement is concentrated in low-homophily neighbourhoods (+0.0139, p=0.055), consistent with the predicted mechanism. However, HeteroSAGE-All does not significantly outperform the plain MLP-All (McNemar p=0.89), and none of the heterophily bucket comparisons survive multiple-comparison correction.
 
-Our decomposition methodology — separating topology, attribute-smoothing, and label propagation — provides a template for interrogating which aspect of 'neighbourhood' drives performance. Without this decomposition, a naive RF-Profile vs RF-All comparison produces a statistically significant but misleadingly interpretable result. The heterophily analysis further shows that even when neighbourhood structure matters in principle, the wrong aggregation function can hide the signal.
+Our decomposition methodology — separating topology, attribute-smoothing, and label propagation — provides a template for interrogating which aspect of 'neighbourhood' drives performance. Without this decomposition, a naive RF-Profile vs RF-All comparison produces a statistically significant but misleadingly interpretable result. The heterophily analysis reveals a plausible mechanism for GNN underperformance on low-homophily graphs, but the effect sizes are small and the signals do not survive correction for multiple comparisons. On the TwiBot-20 neighbour-list graph, neighbourhood structure — whether through engineered features, standard GNNs, or heterophily-aware GNNs — adds little beyond strong profile and tweet-content baselines.
 
 # 10. Confusion Matrices
 
@@ -362,4 +377,4 @@ Key observations:
 - Zhu, J., Yan, Y., Zhao, L., Heimann, M., Akoglu, L., & Koutra, D. (2020). Beyond homophily in graph neural networks: Current limitations and effective designs. *NeurIPS 2020.*
 
 ---
-*Report generated on 2026-07-02 01:21. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*
+*Report generated on 2026-07-02 02:19. Run `uv run python src/load_twibot.py` through `uv run python src/generate_report.py` to reproduce.*

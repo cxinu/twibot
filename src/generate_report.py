@@ -102,7 +102,7 @@ def main():
         lines.append("")
 
     # ── Title ──
-    H(1, "TwiBot-20 Domain-Conditioned Bot Detection")
+    H(1, "Heterophily-Aware Graph Neural Networks for Social Media Bot Detection")
 
     # ── Abstract ──
     L("## Abstract")
@@ -122,15 +122,16 @@ def main():
       f"nor label propagation ({f1_lp_impact:+.4f}, {sig_lp}) individually produce a statistically significant improvement "
       "over the preceding rung of the ladder.")
     L("")
-    L(f"Domain-conditioned models (DomainRelSAGE) also fail to outperform a plain MLP on the same input features, "
-      f"and per-domain mechanism decompositions show effect sizes within noise range given per-domain sample sizes (~270–340).")
+    L("Domain-conditioned models (DomainRelSAGE) also fail to outperform a plain MLP on the same input features, "
+      "and per-domain mechanism decompositions show effect sizes within noise range given per-domain sample sizes (~270–340).")
     L("")
     L("However, we identify a key mechanism behind GNN underperformance: the TwiBot-20 graph has **low edge homophily** "
-      "(0.53, barely above chance), so standard mean aggregation (SAGEConv) smooths over conflicting labels in "
+      "(0.53, barely above chance), so standard mean aggregation (`SAGEConv`) smooths over conflicting labels in "
       "heterophilic neighbourhoods. Replacing mean aggregation with a sign-flipped heterophily-aware variant "
-      "(h_i' = W₁·h_i + W₂·(h_i − mean(h_j))) recovers performance, achieving **F1=0.8280** — the best GNN result "
-      "and above the MLP baseline (0.8248). The improvement is concentrated in low-homophily neighbourhoods "
-      "(ΔF1=+0.0123, p=0.0442), confirming the mechanism.")
+      "( $h_i' = W_1 h_i + W_2 \\cdot (h_i - \\text{mean}(h_j))$ ) achieves the best GNN point estimate (F1=0.8275 vs SAGE-All "
+      "0.8192 and MLP-All 0.8248), but the difference relative to MLP-All is not significant (McNemar "
+      "p=0.89). The improvement over SAGE-All is concentrated in low-homophily neighbourhoods "
+      "(ΔF1=+0.0139, p=0.055), consistent with the predicted mechanism.")
     L("")
 
     # ── 1. Introduction ──
@@ -177,8 +178,9 @@ def main():
       "most GNN architectures through mean/sum/max neighbourhood aggregation. FAGCN (Bo et al., 2021) and H2GCN "
       "(Zhu et al., 2020) relax this assumption by allowing the model to learn different aggregation weights for "
       "low-frequency (homophilic) and high-frequency (heterophilic) signals. Our HeteroSAGE variant applies the "
-      "simplest instance of this idea — a fixed sign flip — and shows that on the TwiBot-20 graph, the choice of "
-      "aggregation function determines whether message passing helps or hurts performance.")
+      "simplest instance of this idea — a fixed sign flip — and shows that on the TwiBot-20 graph, the "
+      "heterophily-aware variant improves over standard SAGEConv (ΔF1=+0.008, p=0.018), but the effect "
+      "size is not large enough to produce a significant advantage over the plain MLP baseline.")
     L("")
 
     # ── 3. Dataset ──
@@ -208,28 +210,28 @@ def main():
     H(1, "4. Feature Engineering")
     L("")
     H(2, "4.1 Profile Features (22 features)")
-    L("Count-based (log1p): followers_count, friends_count, listed_count, favourites_count, statuses_count, "
-      "account_age_days, description_length, screen_name_length, name_length. Binary: verified, protected, geo_enabled, "
-      "default_profile, default_profile_image, has_extended_profile, profile_use_background_image, contributors_enabled, "
-      "is_translator, is_translation_enabled, profile_background_tile, has_description, has_url.")
+    L("Count-based (log1p): `followers_count`, `friends_count`, `listed_count`, `favourites_count`, `statuses_count`, "
+      "`account_age_days`, `description_length`, `screen_name_length`, `name_length`. Binary: `verified`, `protected`, `geo_enabled`, "
+      "`default_profile`, `default_profile_image`, `has_extended_profile`, `profile_use_background_image`, `contributors_enabled`, "
+      "`is_translator`, `is_translation_enabled`, `profile_background_tile`, `has_description`, `has_url`.")
     L("")
     H(2, "4.2 Tweet Features (12 features)")
-    L("tweet_count (log1p), avg_tweet_length (log1p), hashtag_count, url_count, mention_count, retweet_count "
-      "(each log1p), avg_retweet_count, avg_favorite_count, num_numeric, num_special_chars (log1p), "
-      "tweet_url_ratio, tweet_hashtag_ratio.")
+    L("`tweet_count` (log1p), `avg_tweet_length` (log1p), `hashtag_count`, `url_count`, `mention_count`, `retweet_count` "
+      "(each log1p), `avg_retweet_count`, `avg_favorite_count`, `num_numeric`, `num_special_chars` (log1p), "
+      "`tweet_url_ratio`, `tweet_hashtag_ratio`.")
     L("")
     H(2, "4.3 Topology Features (8 features — pure structure, no neighbour attributes)")
     L("Computed from the directed networkx graph on all 229,580 nodes (train+dev+test+support). "
-      "Features: degree, in_degree, out_degree (log1p), clustering_coefficient, PageRank, "
-      "k_core_number, community_id (Louvain), in_out_ratio (log1p).")
+      "Features: `degree`, `in_degree`, `out_degree` (log1p), `clustering_coefficient`, `PageRank`, "
+      "`k_core_number`, `community_id` (Louvain), `in_out_ratio` (log1p).")
     L("")
     H(2, "4.4 Neighbour-Attribute Features (6 features)")
-    L("mean_neighbour_followers, mean_neighbour_friends, mean_neighbour_statuses, mean_neighbour_favourites, "
-      "mean_neighbour_account_age_days (all log1p), std_neighbour_followers. "
+    L("`mean_neighbour_followers`, `mean_neighbour_friends`, `mean_neighbour_statuses`, `mean_neighbour_favourites`, "
+      "`mean_neighbour_account_age_days` (all log1p), `std_neighbour_followers`. "
       "Computed from all nodes including support. No label information used.")
     L("")
     H(2, "4.5 Label-Propagation Feature (1 feature, isolated)")
-    L("neighbour_bot_rate: fraction of a user's labelled neighbours that are bots (train labels only). "
+    L("`neighbour_bot_rate`: fraction of a user's labelled neighbours that are bots (train labels only). "
       "Kept as a separate array so it can be added/removed independently in the ablation.")
     L("")
 
@@ -297,12 +299,14 @@ def main():
         L("")
     L(f"Best neural configuration: {gnn_best_name} (F1={gnn_best_f1:.4f}), comparable to RF-All (F1={rf_all_f1:.4f}).")
     L("")
-    L("Critically, standard graph-convolutional variants (SAGE-All: ~0.8210, RelSAGE-All: ~0.8134, "
+    L("Critically, standard graph-convolutional variants (SAGE-All: ~0.8192, RelSAGE-All: ~0.8137, "
       "DomainRelSAGE-All: ~0.8215) do not outperform the plain MLP-All (~0.8248) on identical features. "
-      "However, a **heterophily-aware variant** (HeteroSAGE-All: 0.8280) — which replaces mean aggregation with "
-      "a sign-flipped difference operation — recovers the gap and achieves the best GNN result. "
-      "This suggests the issue is not message passing per se, but the specific aggregation function: "
-      "standard mean aggregation assumes homophily, which the TwiBot-20 graph does not satisfy.")
+      "A **heterophily-aware variant** (HeteroSAGE-All: 0.8275) — which replaces mean aggregation with "
+      "a sign-flipped difference operation — achieves a higher point estimate, but the difference "
+      "relative to MLP-All is not statistically significant (McNemar p=0.89). "
+      "This suggests the issue is partly the specific aggregation function: "
+      "standard mean aggregation assumes homophily, which the TwiBot-20 graph does not satisfy, "
+      "but the heterogeneity is not strong enough to produce a clear GNN advantage.")
     L("")
 
     # ── 6. Results ──
@@ -318,7 +322,7 @@ def main():
     L(f"The neighbourhood feature set changes F1 by **{f1_neighbourhood_impact:+.4f}** — effectively zero. "
       f"Breaking this into mechanism-specific contributions:")
     L("")
-    L(f"| Step | ΔF1 | McNemar |")
+    L("| Step | ΔF1 | McNemar |")
     L("|------|-----|---------|")
     L(f"| Profile → +Tweets | **+{f1_tweet_gain:.4f}** | {sig_tweet} |")
     L(f"| +Tweets → +Topology | **{f1_topo_impact:+.4f}** | {sig_topo} |")
@@ -367,7 +371,7 @@ def main():
     # ── 6.3 Edge Homophily Analysis ──
     H(2, "6.3 Edge Homophily Analysis")
     L("")
-    L("The standard SAGEConv update rule (h_i' = W₁·h_i + W₂·mean(h_j)) assumes homophily: it "
+    L("The standard SAGEConv update rule ( $h_i' = W_1 h_i + W_2 \\cdot \\text{mean}(h_j)$ ) assumes homophily: it "
       "smooths a node's representation toward the mean of its neighbours. This is beneficial when "
       "neighbours share the same label (and thus have similar feature representations), but "
       "harmful when many neighbours belong to the opposite class.")
@@ -387,7 +391,7 @@ def main():
       "assignment given the 56% bot rate. The graph is effectively neutral — neither homophilic "
       "nor heterophilic. For the 38.9% of test nodes in heterophilic neighbourhoods (homophily < 0.5), "
       "standard mean aggregation averages over conflicting signals and degrades the representation. "
-      "This provides a mechanism for why SAGE-All (F1~0.8210) falls short of MLP-All (F1~0.8248): "
+      "This provides a mechanism for why SAGE-All (F1≈0.8210) falls short of MLP-All (F1≈0.8248): "
       "message passing through a neutral-to-heterophilic graph adds noise rather than signal.")
     L("")
 
@@ -399,56 +403,86 @@ def main():
     L("")
     L("| Variant | Update Rule |")
     L("|---------|------------|")
-    L("| Standard SAGEConv | h_i' = W₁·h_i + W₂·mean(h_j) |")
-    L("| Heterophily-aware (HeteroSAGE) | h_i' = W₁·h_i + W₂·(h_i − mean(h_j)) |")
+    L("| Standard SAGEConv | $h_i' = W_1 h_i + W_2 \\cdot \\text{mean}(h_j)$ |")
+    L("| Heterophily-aware (HeteroSAGE) | $h_i' = W_1 h_i + W_2 \\cdot (h_i - \\text{mean}(h_j))$ |")
     L("")
     L("The change replaces 'smooth toward the neighbourhood' with 'emphasise the difference from "
       "the neighbourhood,' which is the correct inductive bias when many neighbours belong to the "
-      "opposite class. The heterophily-aware formula is algebraically (W₁+W₂)·h_i − W₂·mean(h_j) — "
+      "opposite class. The heterophily-aware formula is algebraically "
+      "$(W_1 + W_2) h_i - W_2 \\cdot \\text{mean}(h_j)$ — "
       "identical model capacity to standard SAGEConv, with only the sign of the neighbour term flipped.")
     L("")
-    L("HeteroSAGE-All achieves **F1=0.8280 ± 0.0048** (3 seeds), the best GNN result and above "
-      "both MLP-All (0.8248 ± 0.0013) and SAGE-All (0.8210 ± 0.0040):")
+    L("HeteroSAGE-All achieves **F1=0.8275 ± 0.0030** (3 seeds), the best GNN point estimate:")
     L("")
     L("| Config | F1 Macro | AUC |")
     L("|--------|----------|-----|")
     L("| MLP-All | 0.8248 ± 0.0013 | 0.9050 ± 0.0020 |")
-    L("| SAGE-All | 0.8210 ± 0.0040 | 0.9122 ± 0.0013 |")
-    L("| HeteroSAGE-All | **0.8280 ± 0.0048** | 0.9124 ± 0.0006 |")
+    L("| SAGE-All | 0.8192 ± 0.0038 | 0.9121 ± 0.0013 |")
+    L("| HeteroSAGE-All | **0.8275 ± 0.0030** | 0.9123 ± 0.0006 |")
+    L("")
+    L("The gap between HeteroSAGE-All and MLP-All is +0.0027 in point estimate, but this difference "
+      "is not statistically significant (McNemar test over the full test set: p=0.89). The comparison "
+      "of primary interest is therefore SAGE-All vs HeteroSAGE-All, which isolates the effect of the "
+      "aggregation change while holding the model architecture constant.")
     L("")
     L("To isolate the mechanism, we split test nodes into low-homophily (<0.5) and high-homophily "
-      "(≥0.5) buckets (pre-registered threshold) and evaluate both models within each bucket:")
+      "(≥0.5) buckets (pre-registered threshold) and evaluate SAGE-All vs HeteroSAGE-All within each:")
     L("")
     L("| Bucket | N | SAGE-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |")
     L("|--------|---|------------|------------------|-----|-----------|")
-    L("| Low homophily (<0.5) | 426 | 0.8044±0.0069 | **0.8167±0.0066** | **+0.0123** | **0.0442** |")
-    L("| High homophily (≥0.5) | 670 | 0.8305±0.0017 | 0.8346±0.0024 | +0.0041 | 0.4414 |")
-    L("| Overall | 1096 | 0.8208±0.0036 | 0.8281±0.0040 | +0.0073 | 0.0411 |")
+    L("| Low homophily (<0.5) | 426 | 0.8022±0.0069 | **0.8161±0.0047** | **+0.0139** | 0.0550 |")
+    L("| High homophily (≥0.5) | 670 | 0.8292±0.0018 | 0.8336±0.0032 | +0.0044 | 0.2012 |")
+    L("| Overall | 1096 | 0.8191±0.0037 | **0.8272±0.0024** | **+0.0081** | **0.0184** |")
     L("")
-    L("The improvement is concentrated in the **low-homophily bucket** (ΔF1=+0.0123, p=0.0442), "
-      "exactly where the theory predicts. In the high-homophily bucket, the two variants are "
-      "statistically indistinguishable (+0.0041, p=0.4414), showing that the sign-flipped aggregation "
-      "does not degrade performance even on homophilic neighbourhoods. The overall comparison is also "
-      "significant (ΔF1=+0.0073, p=0.0411).")
+    L("The improvement is concentrated in the **low-homophily bucket** (ΔF1=+0.0139, p=0.055), "
+      "exactly where the theory predicts — though the result is marginal at conventional α=0.05. "
+      "In the high-homophily bucket, the two variants are statistically indistinguishable (+0.0044, "
+      "p=0.2012), showing that the sign-flipped aggregation does not degrade performance even on "
+      "homophilic neighbourhoods. The overall comparison is nominally significant (ΔF1=+0.0081, p=0.0184).")
     L("")
-    L("A robustness check restricting to nodes with degree ≥ 3 (N=310) shows the same directional "
-      "pattern (+0.0109 in the low-homophily bucket, +0.0076 in high-homophily) though the smaller "
-      "sample washes out significance:")
+    L("**Caveat — multiple comparisons.** We report 8+ p-values across the heterophily bucket analysis "
+      "(§6.4), the ladder significance tests (§6.5), and the domain comparisons. At a Bonferroni-corrected "
+      "threshold (α ≈ 0.006 for 8 tests), none of the reported p-values survive correction — including "
+      "the overall SAGE vs Hetero result (p=0.0184). These comparisons are best interpreted as exploratory "
+      "mechanistic evidence rather than confirmatory hypothesis tests.")
+    L("")
+    L("**Head-to-head with MLP-All.** For completeness, the HeteroSAGE-All vs MLP-All comparison within "
+      "each homophily bucket is uniformly non-significant:")
+    L("")
+    L("| Bucket | N | MLP-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |")
+    L("|--------|---|-----------|------------------|-----|-----------|")
+    L("| Low homophily (<0.5) | 426 | 0.8140±0.0034 | 0.8161±0.0047 | +0.0021 | 1.0000 |")
+    L("| High homophily (≥0.5) | 670 | 0.8327±0.0007 | 0.8336±0.0032 | +0.0009 | 0.7103 |")
+    L("| Overall | 1096 | 0.8258±0.0017 | 0.8272±0.0024 | +0.0014 | 0.8918 |")
+    L("")
+    L("Across all buckets, the ΔF1 between HeteroSAGE-All and MLP-All never exceeds +0.0021 and never "
+      "approaches significance. The headline claim 'HeteroSAGE beats MLP' rests entirely on the point "
+      "estimate of the mean over 3 seeds, which is well within the 95% confidence interval of either model.")
+    L("")
+    L("**Degree-homophily confound.** Nearly half of test nodes (47.3%) have degree 1, for whom per-node "
+      "homophily is a binary indicator (0 or 1) rather than a continuous measure. Low-homophily nodes "
+      "in the ≥0-degree split also have slightly higher average degree (3.09 vs 2.83 for high-homophily "
+      "nodes), so the marginal bucket result (p=0.055) may partly reflect degree-related variance rather "
+      "than a pure heterophily effect. The deg≥3 robustness check mitigates this concern:")
     L("")
     L("| Bucket (deg ≥ 3) | N | SAGE-All F1 | HeteroSAGE-All F1 | ΔF1 | McNemar p |")
     L("|-----------------|---|------------|------------------|-----|-----------|")
-    L("| Low homophily (<0.5) | 150 | 0.8616±0.0031 | **0.8725±0.0111** | +0.0109 | 0.3711 |")
-    L("| High homophily (≥0.5) | 160 | 0.8067±0.0082 | 0.8143±0.0007 | +0.0076 | 0.4795 |")
-    L("| Overall | 310 | 0.8420±0.0030 | 0.8517±0.0057 | +0.0097 | 0.4497 |")
+    L("| Low homophily (<0.5) | 150 | 0.8594±0.0031 | 0.8703±0.0093 | +0.0109 | 0.4497 |")
+    L("| High homophily (≥0.5) | 160 | 0.8087±0.0093 | 0.8123±0.0021 | +0.0036 | 0.4795 |")
+    L("| Overall | 310 | 0.8420±0.0030 | 0.8495±0.0042 | +0.0075 | 0.5050 |")
     L("")
     L("![Bucket Comparison](results/figures/fig_bucket_comparison.png)")
     L("*Figure 4: SAGE-All vs HeteroSAGE-All F1 Macro by homophily bucket. "
-      "Error bars show ±1 std over 3 random seeds. P-values from McNemar's test.*")
+      "Error bars show ±1 std over 3 random seeds. P-values from McNemar's test. "
+      "The HeteroSAGE-All vs MLP-All comparison is uniformly non-significant (see text).*")
     L("")
-    L("**Key finding**: The one-line formula change recovers the gap between standard GNNs and the "
-      "MLP baseline on this dataset. The differential effect across homophily buckets confirms that "
-      "standard mean aggregation — not message passing in general — is the mechanism behind "
-      "SAGEConv's underperformance on low-homophily graphs.")
+    L("**Key finding**: The one-line formula change recovers the gap between standard SAGEConv and the "
+      "MLP baseline in point estimate, and the differential effect across homophily buckets confirms "
+      "that standard mean aggregation — not message passing in general — is the mechanism behind "
+      "SAGEConv's underperformance on low-homophily graphs. However, neither the headline comparison "
+      "(HeteroSAGE-All vs MLP-All, p=0.89) nor the low-homophily bucket (p=0.055) reaches conventional "
+      "significance levels, and none survive multiple-comparison correction. The evidence should be "
+      "interpreted as an exploratory mechanistic signal, not a definitive result.")
     L("")
 
     H(2, "6.5 Significance Testing (Sequential Ladder Steps)")
@@ -581,6 +615,11 @@ def main():
     L("9. **The HeteroSAGE variant is evaluated on the same 3 seeds as other models.** "
       "The McNemar significance results are based on a single seed (seed 42) rather than aggregated "
       "across seeds. The consistency of the directional pattern across all 3 seeds mitigates this concern.")
+    L("10. **Multiple comparison burden in the heterophily analysis.** The bucket comparison (§6.4) "
+      "reports p-values across low/high homophily splits, degree filters, and model comparisons "
+      "(SAGE vs Hetero, MLP vs Hetero). None of the reported p-values survive Bonferroni correction "
+      "for 8+ tests. The heterophily findings should be treated as exploratory mechanistic evidence, "
+      "not confirmatory hypothesis tests.")
     L("")
 
     H(1, "9. Conclusion")
@@ -592,21 +631,26 @@ def main():
       f"change F1 by {f1_neighbourhood_impact:+.4f} — effectively zero.")
     L(f"2. The apparent improvement from RF-Profile to RF-All (+{f1_gain_profile_vs_all:.4f}) is entirely "
       f"driven by tweet-content features (+{f1_tweet_gain:.4f}), not graph structure.")
-    L(f"3. Per-domain analyses show effect sizes within noise given small domain test samples (~270–340). "
-      f"Domain-conditioned models (DomainRelSAGE) do not outperform a global MLP.")
-    L(f"4. The graph has low edge homophily (0.53, barely above chance). Standard mean aggregation "
-      f"smooths over conflicting signals in heterophilic neighbourhoods, explaining why SAGE-All "
-      f"(F1=0.8210) underperforms a plain MLP (F1=0.8248).")
-    L(f"5. A one-line heterophily-aware modification to SAGEConv (h_i' = W₁·h_i + W₂·(h_i − mean(h_j))) "
-      f"recovers performance: HeteroSAGE-All achieves F1=0.8280 ± 0.0048, the best GNN result. "
-      f"The improvement is concentrated in low-homophily neighbourhoods (+0.0123, p=0.0442), "
-      f"confirming the mechanism.")
+    L("3. Per-domain analyses show effect sizes within noise given small domain test samples (~270–340). "
+      "Domain-conditioned models (DomainRelSAGE) do not outperform a global MLP.")
+    L("4. The graph has low edge homophily (0.53, barely above chance). Standard mean aggregation "
+      "smooths over conflicting signals in heterophilic neighbourhoods, explaining why SAGE-All "
+      "(F1=0.8192) underperforms a plain MLP (F1=0.8248).")
+    L("5. A one-line heterophily-aware modification to SAGEConv ( $h_i' = W_1 h_i + W_2 \\cdot (h_i - \\text{mean}(h_j))$ ) "
+      "improves over standard SAGEConv: HeteroSAGE-All (F1=0.8275) vs SAGE-All (F1=0.8192). "
+      "The improvement is concentrated in low-homophily neighbourhoods (+0.0139, p=0.055), "
+      "consistent with the predicted mechanism. However, HeteroSAGE-All does not significantly "
+      "outperform the plain MLP-All (McNemar p=0.89), and none of the heterophily bucket "
+      "comparisons survive multiple-comparison correction.")
     L("")
     L("Our decomposition methodology — separating topology, attribute-smoothing, and label propagation — "
       "provides a template for interrogating which aspect of 'neighbourhood' drives performance. "
       "Without this decomposition, a naive RF-Profile vs RF-All comparison produces a statistically significant "
-      "but misleadingly interpretable result. The heterophily analysis further shows that even when "
-      "neighbourhood structure matters in principle, the wrong aggregation function can hide the signal.")
+      "but misleadingly interpretable result. The heterophily analysis reveals a plausible mechanism "
+      "for GNN underperformance on low-homophily graphs, but the effect sizes are small and the "
+      "signals do not survive correction for multiple comparisons. On the TwiBot-20 neighbour-list graph, "
+      "neighbourhood structure — whether through engineered features, standard GNNs, or heterophily-aware "
+      "GNNs — adds little beyond strong profile and tweet-content baselines.")
     L("")
 
     H(1, "10. Confusion Matrices")

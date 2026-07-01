@@ -542,7 +542,7 @@ def main():
         all_results.append(mean_row)
         print(f"  Mean: F1={mean_row['f1_macro_mean']:.4f}±{mean_row['f1_macro_std']:.4f}, AUC={mean_row['auc_mean']:.4f}±{mean_row['auc_std']:.4f}")
 
-        if name in ("SAGE-All", "HeteroSAGE-All"):
+        if name in ("SAGE-All", "HeteroSAGE-All", "MLP-All"):
             pairwise_store[name] = {
                 "y_true": deepcopy(all_y_true),
                 "y_pred": deepcopy(all_y_pred),
@@ -675,6 +675,69 @@ def main():
             bucket_df.to_csv(os.path.join(OUTPUT_DIR, f"hetero_bucket_comparison{suffix}.csv"), index=False)
 
         print(f"\nSaved bucket comparison tables.")
+
+    # ---- Headline comparison: HeteroSAGE-All vs MLP-All ----
+    if "MLP-All" in pairwise_store and "HeteroSAGE-All" in pairwise_store:
+        print(f"\n{'='*60}")
+        print("Headline comparison: HeteroSAGE-All vs MLP-All")
+        print()
+
+        mlp = pairwise_store["MLP-All"]
+        hetero = pairwise_store["HeteroSAGE-All"]
+
+        for min_deg, suffix in [(0, ""), (3, "_deg3plus")]:
+            deg_ok = test_deg_np >= min_deg
+            bucket_valid = valid & deg_ok
+
+            low = np.where((test_homo_np < 0.5) & bucket_valid)[0]
+            high = np.where((test_homo_np >= 0.5) & bucket_valid)[0]
+            overall = np.where(bucket_valid)[0]
+
+            print(f"\n  HeteroSAGE-All vs MLP-All (deg>={min_deg}):")
+            header = f"  {'Bucket':<22} {'N':>6} {'MLP F1':>14} {'Hetero F1':>14} {'ΔF1':>8} {'McNemar p':>10}"
+            print(header)
+            print("  " + "-" * len(header))
+
+            mlp_rows = []
+            for b_idx, b_name in [(low, "Low homophily (<0.5)"),
+                                   (high, "High homophily (>=0.5)"),
+                                   (overall, "Overall")]:
+                if len(b_idx) == 0:
+                    continue
+
+                m_eval = bucket_eval(mlp["y_true"], mlp["y_pred"], mlp["y_prob"], b_idx, b_name)
+                h_eval = bucket_eval(hetero["y_true"], hetero["y_pred"], hetero["y_prob"], b_idx, b_name)
+                if m_eval is None or h_eval is None:
+                    continue
+
+                delta = round(h_eval["f1_macro_mean"] - m_eval["f1_macro_mean"], 4)
+
+                p_val = mcnemar_pvalue(
+                    mlp["y_true"][0][b_idx],
+                    mlp["y_pred"][0][b_idx],
+                    hetero["y_pred"][0][b_idx],
+                )
+
+                print(f"  {b_name:<22} {m_eval['n']:>6}  "
+                      f"{m_eval['f1_macro_mean']:.4f}±{m_eval['f1_macro_std']:.4f}  "
+                      f"{h_eval['f1_macro_mean']:.4f}±{h_eval['f1_macro_std']:.4f}  "
+                      f"{delta:+8.4f}  {p_val:.4f}")
+
+                mlp_rows.append({
+                    "comparison": f"HeteroSAGE_vs_MLP{suffix}",
+                    "bucket": b_name,
+                    "n": m_eval["n"],
+                    "mlp_f1": f"{m_eval['f1_macro_mean']:.4f}±{m_eval['f1_macro_std']:.4f}",
+                    "hetero_f1": f"{h_eval['f1_macro_mean']:.4f}±{h_eval['f1_macro_std']:.4f}",
+                    "delta_f1": delta,
+                    "delta_auc": round(h_eval["auc_mean"] - m_eval["auc_mean"], 4),
+                    "mcnemar_p": p_val,
+                })
+
+            mlp_bucket_df = pd.DataFrame(mlp_rows)
+            mlp_bucket_df.to_csv(os.path.join(OUTPUT_DIR, f"mlp_vs_hetero_bucket_comparison{suffix}.csv"), index=False)
+
+        print(f"\nSaved MLP-All vs HeteroSAGE-All comparison tables.")
 
 
 if __name__ == "__main__":

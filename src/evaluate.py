@@ -190,6 +190,43 @@ def main():
     else:
         print("\n  Skipping bucket comparison plot: hetero_bucket_comparison.csv not found")
 
+    # MLP-All vs HeteroSAGE-All bucket comparison figure
+    mlp_bucket_path = os.path.join(OUTPUT_DIR, "mlp_vs_hetero_bucket_comparison.csv")
+    if os.path.exists(mlp_bucket_path):
+        print("\nPlotting MLP vs HeteroSAGE bucket comparison...")
+        mdf = pd.read_csv(mlp_bucket_path)
+        mdf_plot = mdf[mdf["bucket"] != "Overall"]
+
+        buckets = mdf_plot["bucket"].values
+        mlp_m = [parse_mean(v) for v in mdf_plot["mlp_f1"]]
+        mlp_s = [parse_std(v) for v in mdf_plot["mlp_f1"]]
+        hetero_m = [parse_mean(v) for v in mdf_plot["hetero_f1"]]
+        hetero_s = [parse_std(v) for v in mdf_plot["hetero_f1"]]
+
+        x = np.arange(len(buckets))
+        width = 0.35
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.bar(x - width / 2, mlp_m, width, yerr=mlp_s,
+               label="MLP-All", color="#2A9D8F", capsize=3)
+        ax.bar(x + width / 2, hetero_m, width, yerr=hetero_s,
+               label="HeteroSAGE-All", color="#D62828", capsize=3)
+        ax.set_xticks(x)
+        ax.set_xticklabels(buckets, fontsize=10)
+        ax.set_ylabel("F1 Macro", fontsize=11)
+        ax.set_title("MLP-All vs HeteroSAGE-All by Homophily Bucket", fontsize=11)
+        ax.legend(fontsize=9)
+        ax.set_ylim(0.75, 0.90)
+        for i, (_, row) in enumerate(mdf_plot.iterrows()):
+            y_max = max(mlp_m[i] + mlp_s[i], hetero_m[i] + hetero_s[i])
+            ax.text(i, y_max + 0.008, f"p={row['mcnemar_p']:.3f}",
+                    ha="center", fontsize=8, fontstyle="italic")
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIGURE_DIR, "fig_mlp_bucket_comparison.png"), dpi=150)
+        plt.close()
+        print("  Saved fig_mlp_bucket_comparison.png")
+    else:
+        print("\n  Skipping MLP bucket comparison: mlp_vs_hetero_bucket_comparison.csv not found")
+
     # Per-domain scatter overlay with GNN results
     print("\nPer-domain F1 breakdowns:")
     rf_per_domain = rf_df[rf_df["config"].str.contains("_", na=False)]
