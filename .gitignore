@@ -2,3 +2,6 @@
 __pycache__
 dataset
 data
+lightning_logs
+*.pt
+src_*

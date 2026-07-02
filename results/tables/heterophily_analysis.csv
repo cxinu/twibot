@@ -1,8 +1,0 @@
-bucket,n_test_combined,acc_combined,f1_macro_combined,auc_combined,n_test_follow,f1_macro_follow,n_test_following,f1_macro_following,mean_combined_homo,median_combined_homo,mean_follow_homo,mean_following_homo,mean_abs_diff,median_abs_diff,pearson_corr,pct_follow_only_homophilic,pct_following_only_homophilic
-0,409.0,0.8093,0.7989,0.8615,835.0,0.8418,625.0,0.7902,,,,,,,,,
-0.01-0.25,30.0,0.8333,0.8331,0.9861,9.0,,25.0,0.8397,,,,,,,,,
-0.26-0.50,206.0,0.8641,0.8628,0.9431,26.0,0.8045,152.0,0.9145,,,,,,,,,
-0.51+,538.0,0.842,0.8376,0.9315,313.0,0.7276,381.0,0.8137,,,,,,,,,
-bots_summary,,,,,,,,,0.5058,0.5,0.3623,0.2768,,,,,
-humans_summary,,,,,,,,,0.5306,0.5,0.134,0.497,,,,,
-relation_disagreement,,,,,,,,,,,,,0.4875,0.5,-0.1524,0.1813,0.2697
