@@ -1,8 +1,14 @@
 """Graph neural network models for TwiBot-20 bot detection.
 
-Includes the standard BotRGCN baseline and a gated RGCN variant that mixes
-low-pass (mean-neighbour) and high-pass (ego-minus-neighbour) aggregation per
-relation, controlled by a learned per-node, per-relation gate.
+Includes the standard BotRGCN baseline and gated RGCN variants that mix
+low-pass (mean-neighbour) and ego-contrast aggregation per relation. Feature
+dimensions and architecture follow the original BotRGCN paper:
+
+    des  (768-dim)  -> h
+    tweet(768-dim)  -> h
+    num_prop (5-dim)-> h
+    cat_prop (3-dim)-> h
+    concat -> 4h = embedding_dim (=32)
 """
 
 import torch
@@ -12,39 +18,62 @@ from torch_geometric.nn import MessagePassing
 
 
 class BotRGCN(nn.Module):
-    """Standard two-layer RGCN baseline with four feature-group encoders."""
+    """Standard two-layer RGCN baseline matching the original BotRGCN paper.
 
-    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8,
-                 neighbour_dim=6, embedding_dim=128, dropout=0.3, num_relations=2):
+    Inputs (paper names):
+        des      -- RoBERTa description embeddings,         shape [N, 768]
+        tweet    -- RoBERTa tweet embeddings,               shape [N, 768]
+        num_prop -- standardized numerical properties,      shape [N, 5]
+        cat_prop -- categorical properties,                 shape [N, 3]
+
+    The original code uses a single RGCNConv module applied twice (shared
+    weights). Output is 2-class logits for CrossEntropyLoss.
+    """
+
+    def __init__(self, des_size=768, tweet_size=768, num_prop_size=5,
+                 cat_prop_size=3, embedding_dimension=32, dropout=0.1,
+                 num_relations=2):
         super().__init__()
         self.dropout = dropout
-        h = embedding_dim // 4
-        self.enc_profile = nn.Sequential(nn.Linear(profile_dim, h), nn.LeakyReLU())
-        self.enc_tweet = nn.Sequential(nn.Linear(tweet_dim, h), nn.LeakyReLU())
-        self.enc_topology = nn.Sequential(nn.Linear(topology_dim, h), nn.LeakyReLU())
-        self.enc_neighbour = nn.Sequential(nn.Linear(neighbour_dim, h), nn.LeakyReLU())
-        self.proj = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
-
+        h = embedding_dimension // 4
+        self.linear_relu_des = nn.Sequential(
+            nn.Linear(des_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_tweet = nn.Sequential(
+            nn.Linear(tweet_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_num_prop = nn.Sequential(
+            nn.Linear(num_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_cat_prop = nn.Sequential(
+            nn.Linear(cat_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
         from torch_geometric.nn import RGCNConv
-        self.rgcn1 = RGCNConv(embedding_dim, embedding_dim, num_relations=num_relations)
-        self.rgcn2 = RGCNConv(embedding_dim, embedding_dim, num_relations=num_relations)
+        self.rgcn = RGCNConv(embedding_dimension, embedding_dimension,
+                             num_relations=num_relations)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-        self.out1 = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
-        self.out2 = nn.Linear(embedding_dim, 1)
-
-    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
-        p = self.enc_profile(profile)
-        t = self.enc_tweet(tweet)
-        to = self.enc_topology(topology)
-        n = self.enc_neighbour(neighbour)
-        x = torch.cat([p, t, to, n], dim=1)
-        x = self.proj(x)
-        x = self.rgcn1(x, edge_index, edge_type)
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        d = self.linear_relu_des(des)
+        t = self.linear_relu_tweet(tweet)
+        n = self.linear_relu_num_prop(num_prop)
+        c = self.linear_relu_cat_prop(cat_prop)
+        x = torch.cat((d, t, n, c), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.rgcn2(x, edge_index, edge_type)
-        x = self.out1(x)
-        x = self.out2(x)
-        return torch.sigmoid(x).squeeze(-1)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return x
 
 
 class GatedRGCNConv(MessagePassing):
@@ -61,7 +90,7 @@ class GatedRGCNConv(MessagePassing):
     """
 
     def __init__(self, in_channels, out_channels, num_relations=2,
-                 relation_specific=True, dropout=0.3, att_bias_init=0.0):
+                 relation_specific=True, dropout=0.1, att_bias_init=0.0):
         super().__init__(aggr='add')
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -126,43 +155,54 @@ class GatedRGCNConv(MessagePassing):
 
 
 class GatedBotRGCN(nn.Module):
-    """BotRGCN where both RGCN layers use relation-specific low/high gates."""
+    """BotRGCN where the RGCN layer uses relation-specific low/high gates."""
 
-    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8,
-                 neighbour_dim=6, embedding_dim=128, dropout=0.3, num_relations=2,
-                 relation_specific=True, att_bias_init=0.0):
+    def __init__(self, des_size=768, tweet_size=768, num_prop_size=5,
+                 cat_prop_size=3, embedding_dimension=32, dropout=0.1,
+                 num_relations=2, relation_specific=True, att_bias_init=0.0):
         super().__init__()
         self.dropout = dropout
-        h = embedding_dim // 4
-        self.enc_profile = nn.Sequential(nn.Linear(profile_dim, h), nn.LeakyReLU())
-        self.enc_tweet = nn.Sequential(nn.Linear(tweet_dim, h), nn.LeakyReLU())
-        self.enc_topology = nn.Sequential(nn.Linear(topology_dim, h), nn.LeakyReLU())
-        self.enc_neighbour = nn.Sequential(nn.Linear(neighbour_dim, h), nn.LeakyReLU())
-        self.proj = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
+        h = embedding_dimension // 4
+        self.linear_relu_des = nn.Sequential(
+            nn.Linear(des_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_tweet = nn.Sequential(
+            nn.Linear(tweet_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_num_prop = nn.Sequential(
+            nn.Linear(num_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_cat_prop = nn.Sequential(
+            nn.Linear(cat_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
 
-        self.rgcn1 = GatedRGCNConv(embedding_dim, embedding_dim, num_relations,
-                                   relation_specific=relation_specific, dropout=dropout,
-                                   att_bias_init=att_bias_init)
-        self.rgcn2 = GatedRGCNConv(embedding_dim, embedding_dim, num_relations,
-                                   relation_specific=relation_specific, dropout=dropout,
-                                   att_bias_init=att_bias_init)
+        self.rgcn = GatedRGCNConv(embedding_dimension, embedding_dimension,
+                                  num_relations, relation_specific=relation_specific,
+                                  dropout=dropout, att_bias_init=att_bias_init)
 
-        self.out1 = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
-        self.out2 = nn.Linear(embedding_dim, 1)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
-        p = self.enc_profile(profile)
-        t = self.enc_tweet(tweet)
-        to = self.enc_topology(topology)
-        n = self.enc_neighbour(neighbour)
-        x = torch.cat([p, t, to, n], dim=1)
-        x = self.proj(x)
-        x = self.rgcn1(x, edge_index, edge_type)
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        d = self.linear_relu_des(des)
+        t = self.linear_relu_tweet(tweet)
+        n = self.linear_relu_num_prop(num_prop)
+        c = self.linear_relu_cat_prop(cat_prop)
+        x = torch.cat((d, t, n, c), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.rgcn2(x, edge_index, edge_type)
-        x = self.out1(x)
-        x = self.out2(x)
-        return torch.sigmoid(x).squeeze(-1)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return x
 
 
 class SoftContrastRGCNConv(MessagePassing):
@@ -182,7 +222,7 @@ class SoftContrastRGCNConv(MessagePassing):
     """
 
     def __init__(self, in_channels, out_channels, num_relations=2,
-                 relation_specific=True, dropout=0.3, use_raw_ego=False):
+                 relation_specific=True, dropout=0.1, use_raw_ego=False):
         super().__init__(aggr='add')
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -264,38 +304,49 @@ class SoftContrastRGCNConv(MessagePassing):
 class SoftContrastBotRGCN(nn.Module):
     """BotRGCN with soft-contrast relation-specific/global gates."""
 
-    def __init__(self, profile_dim=22, tweet_dim=12, topology_dim=8,
-                 neighbour_dim=6, embedding_dim=128, dropout=0.3, num_relations=2,
-                 relation_specific=True, use_raw_ego=False):
+    def __init__(self, des_size=768, tweet_size=768, num_prop_size=5,
+                 cat_prop_size=3, embedding_dimension=32, dropout=0.1,
+                 num_relations=2, relation_specific=True, use_raw_ego=False):
         super().__init__()
         self.dropout = dropout
-        h = embedding_dim // 4
-        self.enc_profile = nn.Sequential(nn.Linear(profile_dim, h), nn.LeakyReLU())
-        self.enc_tweet = nn.Sequential(nn.Linear(tweet_dim, h), nn.LeakyReLU())
-        self.enc_topology = nn.Sequential(nn.Linear(topology_dim, h), nn.LeakyReLU())
-        self.enc_neighbour = nn.Sequential(nn.Linear(neighbour_dim, h), nn.LeakyReLU())
-        self.proj = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
+        h = embedding_dimension // 4
+        self.linear_relu_des = nn.Sequential(
+            nn.Linear(des_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_tweet = nn.Sequential(
+            nn.Linear(tweet_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_num_prop = nn.Sequential(
+            nn.Linear(num_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_cat_prop = nn.Sequential(
+            nn.Linear(cat_prop_size, h), nn.LeakyReLU()
+        )
+        self.linear_relu_input = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
 
-        self.rgcn1 = SoftContrastRGCNConv(embedding_dim, embedding_dim, num_relations,
-                                          relation_specific=relation_specific, dropout=dropout,
-                                          use_raw_ego=use_raw_ego)
-        self.rgcn2 = SoftContrastRGCNConv(embedding_dim, embedding_dim, num_relations,
-                                          relation_specific=relation_specific, dropout=dropout,
-                                          use_raw_ego=use_raw_ego)
+        self.rgcn = SoftContrastRGCNConv(embedding_dimension, embedding_dimension,
+                                         num_relations, relation_specific=relation_specific,
+                                         dropout=dropout, use_raw_ego=use_raw_ego)
 
-        self.out1 = nn.Sequential(nn.Linear(embedding_dim, embedding_dim), nn.LeakyReLU())
-        self.out2 = nn.Linear(embedding_dim, 1)
+        self.linear_relu_output1 = nn.Sequential(
+            nn.Linear(embedding_dimension, embedding_dimension),
+            nn.LeakyReLU(),
+        )
+        self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-    def forward(self, profile, tweet, topology, neighbour, edge_index, edge_type):
-        p = self.enc_profile(profile)
-        t = self.enc_tweet(tweet)
-        to = self.enc_topology(topology)
-        n = self.enc_neighbour(neighbour)
-        x = torch.cat([p, t, to, n], dim=1)
-        x = self.proj(x)
-        x = self.rgcn1(x, edge_index, edge_type)
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        d = self.linear_relu_des(des)
+        t = self.linear_relu_tweet(tweet)
+        n = self.linear_relu_num_prop(num_prop)
+        c = self.linear_relu_cat_prop(cat_prop)
+        x = torch.cat((d, t, n, c), dim=1)
+        x = self.linear_relu_input(x)
+        x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.rgcn2(x, edge_index, edge_type)
-        x = self.out1(x)
-        x = self.out2(x)
-        return torch.sigmoid(x).squeeze(-1)
+        x = self.rgcn(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return x

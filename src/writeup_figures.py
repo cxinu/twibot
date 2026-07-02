@@ -298,7 +298,7 @@ ax.set_xticks(x)
 ax.set_xticklabels(["BotRGCN\n(baseline)", "Gated\n(global)", "SoftContrast\n(global)"],
                    fontsize=10)
 ax.set_ylabel("Score")
-ax.set_ylim(0.60, 0.87)
+ax.set_ylim(0.70, 0.92)
 ax.set_title("Overall test performance")
 ax.grid(axis="y", alpha=0.3)
 ax.legend(fontsize=9)

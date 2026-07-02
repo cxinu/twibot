@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Evaluate the per-relation gated RGCN fix against BotRGCN baseline.
 
-Trains three variants on TwiBot-20:
-  1. BotRGCN (plain baseline)
-  2. GatedBotRGCN-global   (single shared low/high gate across relations)
-  3. GatedBotRGCN-rel      (proposed: relation-specific gates)
+This version uses the original BotRGCN preprocessing:
+    - RoBERTa description embeddings  (768-dim)
+    - RoBERTa tweet embeddings        (768-dim)
+    - 5 standardized numerical properties
+    - 3 categorical properties
 
-Reports overall Acc/F1/AUC and per-homophily-bucket performance (combined,
+and the original BotRGCN training recipe:
+    - CrossEntropyLoss
+    - AdamW(lr=1e-2, weight_decay=5e-2)
+    - 50 fixed epochs (no early stopping)
+
+Reports overall Acc/F1/MCC and per-homophily-bucket performance (combined,
 follow-relation, following-relation), plus confusion-matrix breakdown for the
 combined-homophily-0 bucket.
 """
@@ -14,7 +20,6 @@ combined-homophily-0 bucket.
 import json
 import os
 import warnings
-from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -26,13 +31,13 @@ from sklearn.metrics import (
     f1_score,
     matthews_corrcoef,
 )
-from torch.optim import Adam
+from torch.optim import AdamW
 
 from models import BotRGCN, GatedBotRGCN, SoftContrastBotRGCN
 
 warnings.filterwarnings("ignore")
 
-# ── Config ──────────────────────────────────────────────────────────
+# ── Config (matches original train.py) ──────────────────────────────
 DATA_DIR = "data/twibot-20"
 GRAPH_PATH = os.path.join(DATA_DIR, "twibot_graph.pt")
 FEATURE_NAMES_PATH = os.path.join(DATA_DIR, "feature_names.json")
@@ -42,12 +47,13 @@ OUTPUT_CSV = os.path.join(OUTPUT_DIR, "heterophily_fix_results.csv")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 SEEDS = [42, 123, 456, 2024, 9999]
-EPOCHS = 200
-PATIENCE = 20
-LR = 1e-3
-WD = 1e-4
+EPOCHS = 50
+LR = 1e-2
+WD = 5e-2
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+# ── Homophily buckets ───────────────────────────────────────────────
 HOMOPHILY_BINS = [
     (0.0, 0.0, "0"),
     (0.01, 0.25, "0.01-0.25"),
@@ -70,11 +76,13 @@ print("=" * 76)
 
 graph = torch.load(GRAPH_PATH, map_location="cpu", weights_only=False)
 with open(FEATURE_NAMES_PATH) as f:
-    feature_names = json.load(f)
+    _ = json.load(f)  # kept for compatibility
 
-feats = {}
-for group in ["profile", "tweet", "topology", "neighbour_attr"]:
-    feats[group] = np.load(os.path.join(DATA_DIR, f"features_{group}.npy"))
+# Original paper features (already preprocessed by the authors).
+x_des = torch.load(os.path.join(DATA_DIR, "des_tensor.pt"), map_location="cpu", weights_only=False).float()
+x_tweet = torch.load(os.path.join(DATA_DIR, "tweets_tensor.pt"), map_location="cpu", weights_only=False).float()
+x_num_prop = torch.load(os.path.join(DATA_DIR, "num_properties_tensor.pt"), map_location="cpu", weights_only=False).float()
+x_cat_prop = torch.load(os.path.join(DATA_DIR, "cat_properties_tensor.pt"), map_location="cpu", weights_only=False).float()
 
 N_NODES = graph.num_nodes
 LABELED_MASK = graph.y >= 0
@@ -83,27 +91,10 @@ VAL_MASK = graph.val_mask
 TEST_MASK = graph.test_mask
 y = graph.y.long()
 
-
-def standardise(arr, mask):
-    mu = arr[mask].mean(axis=0, keepdims=True)
-    sd = arr[mask].std(axis=0, keepdims=True)
-    sd = np.where(sd < 1e-10, 1.0, sd)
-    return (arr - mu) / sd
-
-
-train_mask_np = TRAIN_MASK.numpy()
-for group in ["profile", "tweet", "topology", "neighbour_attr"]:
-    feats[group] = standardise(feats[group], train_mask_np)
-
-x_profile = torch.tensor(feats["profile"], dtype=torch.float32)
-x_tweet = torch.tensor(feats["tweet"], dtype=torch.float32)
-x_topology = torch.tensor(feats["topology"], dtype=torch.float32)
-x_neighbour = torch.tensor(feats["neighbour_attr"], dtype=torch.float32)
-
-P_DIM = x_profile.size(1)
-T_DIM = x_tweet.size(1)
-TO_DIM = x_topology.size(1)
-N_DIM = x_neighbour.size(1)
+DES_DIM = x_des.size(1)
+TWEET_DIM = x_tweet.size(1)
+NUM_DIM = x_num_prop.size(1)
+CAT_DIM = x_cat_prop.size(1)
 
 
 # ── Per-node homophily (same definition as heterophily_analysis.py) ──
@@ -145,54 +136,36 @@ def train_one_seed(model, data, train_mask, val_mask, seed):
     model.apply(lambda m: m.reset_parameters() if hasattr(m, 'reset_parameters') else None)
 
     d = data.clone().to(DEVICE)
-    xp = x_profile.to(DEVICE)
-    xt = x_tweet.to(DEVICE)
-    xo = x_topology.to(DEVICE)
-    xn = x_neighbour.to(DEVICE)
+    xdes = x_des.to(DEVICE)
+    xtweet = x_tweet.to(DEVICE)
+    xnum = x_num_prop.to(DEVICE)
+    xcat = x_cat_prop.to(DEVICE)
     tm = train_mask.to(DEVICE)
     vm = val_mask.to(DEVICE)
+    y_dev = y.to(DEVICE)
 
-    y_train_labels = d.y[tm]
-    n_pos = (y_train_labels == 1).sum()
-    n_neg = (y_train_labels == 0).sum()
-    pos_weight = n_neg / (n_pos + 1e-8)
-
-    opt = Adam(model.parameters(), lr=LR, weight_decay=WD)
-    best_val_loss = float("inf")
-    best_state = None
-    patience_counter = 0
+    opt = AdamW(model.parameters(), lr=LR, weight_decay=WD)
+    loss_fn = torch.nn.CrossEntropyLoss()
 
     for epoch in range(EPOCHS):
         model.train()
         opt.zero_grad()
-        pred = model(xp, xt, xo, xn, d.edge_index_rgcn, d.edge_type)
-        train_pred = pred[tm]
-        train_y = d.y[tm]
-        weights = torch.where(train_y == 1, pos_weight, 1.0)
-        loss = F.binary_cross_entropy(train_pred, train_y, weight=weights)
+        logits = model(xdes, xtweet, xnum, xcat, d.edge_index_rgcn, d.edge_type)
+        train_logits = logits[tm]
+        train_y = y_dev[tm]
+        loss = loss_fn(train_logits, train_y)
         loss.backward()
         opt.step()
 
-        if epoch % 5 == 0:
+        if (epoch + 1) % 10 == 0 or epoch == 0:
             model.eval()
             with torch.no_grad():
-                val_pred = model(xp, xt, xo, xn, d.edge_index_rgcn, d.edge_type)
-                val_y = d.y[vm]
-                val_pred_m = val_pred[vm]
-                val_weights = torch.where(val_y == 1, pos_weight, 1.0)
-                val_loss = F.binary_cross_entropy(val_pred_m, val_y, weight=val_weights)
+                logits = model(xdes, xtweet, xnum, xcat, d.edge_index_rgcn, d.edge_type)
+                acc_train = (logits[tm].argmax(dim=1) == y_dev[tm]).float().mean().item()
+                acc_val = (logits[vm].argmax(dim=1) == y_dev[vm]).float().mean().item()
+            print(f"    Epoch {epoch+1:04d}: loss={loss.item():.4f}, "
+                  f"train_acc={acc_train:.4f}, val_acc={acc_val:.4f}")
 
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                best_state = deepcopy(model.state_dict())
-                patience_counter = 0
-            else:
-                patience_counter += 5
-                if patience_counter >= PATIENCE:
-                    break
-
-    if best_state is not None:
-        model.load_state_dict(best_state)
     model.eval()
     return model
 
@@ -200,16 +173,17 @@ def train_one_seed(model, data, train_mask, val_mask, seed):
 def evaluate(model, data, mask):
     model.eval()
     d = data.to(DEVICE)
-    xp = x_profile.to(DEVICE)
-    xt = x_tweet.to(DEVICE)
-    xo = x_topology.to(DEVICE)
-    xn = x_neighbour.to(DEVICE)
+    xdes = x_des.to(DEVICE)
+    xtweet = x_tweet.to(DEVICE)
+    xnum = x_num_prop.to(DEVICE)
+    xcat = x_cat_prop.to(DEVICE)
     m = mask.to(DEVICE)
+    y_dev = y.to(DEVICE)
     with torch.no_grad():
-        pred = model(xp, xt, xo, xn, d.edge_index_rgcn, d.edge_type)
-    y_prob = pred[m].cpu().numpy()
-    y_true = d.y[m].cpu().numpy()
-    y_pred = (y_prob >= 0.5).astype(int)
+        logits = model(xdes, xtweet, xnum, xcat, d.edge_index_rgcn, d.edge_type)
+    y_prob = F.softmax(logits[m], dim=1)[:, 1].cpu().numpy()
+    y_true = y_dev[m].cpu().numpy()
+    y_pred = logits[m].argmax(dim=1).cpu().numpy()
     acc = accuracy_score(y_true, y_pred)
     f1_binary = f1_score(y_true, y_pred, average="binary")
     f1_macro = f1_score(y_true, y_pred, average="macro")
@@ -270,23 +244,42 @@ def low_homo_confusion(y_true, y_pred, h_vals, variant):
 configs = [
     {
         "name": "BotRGCN",
-        "model_fn": lambda: BotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM),
+        "model_fn": lambda: BotRGCN(
+            des_size=DES_DIM, tweet_size=TWEET_DIM,
+            num_prop_size=NUM_DIM, cat_prop_size=CAT_DIM,
+        ),
     },
     {
         "name": "GatedBotRGCN-global",
-        "model_fn": lambda: GatedBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=False),
+        "model_fn": lambda: GatedBotRGCN(
+            des_size=DES_DIM, tweet_size=TWEET_DIM,
+            num_prop_size=NUM_DIM, cat_prop_size=CAT_DIM,
+            relation_specific=False,
+        ),
     },
     {
         "name": "GatedBotRGCN-rel",
-        "model_fn": lambda: GatedBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=True),
+        "model_fn": lambda: GatedBotRGCN(
+            des_size=DES_DIM, tweet_size=TWEET_DIM,
+            num_prop_size=NUM_DIM, cat_prop_size=CAT_DIM,
+            relation_specific=True,
+        ),
     },
     {
         "name": "SoftContrastBotRGCN-global",
-        "model_fn": lambda: SoftContrastBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=False),
+        "model_fn": lambda: SoftContrastBotRGCN(
+            des_size=DES_DIM, tweet_size=TWEET_DIM,
+            num_prop_size=NUM_DIM, cat_prop_size=CAT_DIM,
+            relation_specific=False,
+        ),
     },
     {
         "name": "SoftContrastBotRGCN-rel",
-        "model_fn": lambda: SoftContrastBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=True),
+        "model_fn": lambda: SoftContrastBotRGCN(
+            des_size=DES_DIM, tweet_size=TWEET_DIM,
+            num_prop_size=NUM_DIM, cat_prop_size=CAT_DIM,
+            relation_specific=True,
+        ),
     },
 ]
 
@@ -302,6 +295,7 @@ print("Training and evaluating variants")
 print("=" * 76)
 print(f"  Device: {DEVICE}")
 print(f"  Seeds:  {SEEDS}")
+print(f"  Epochs: {EPOCHS}, LR: {LR}, WD: {WD}")
 print()
 
 for cfg in configs:

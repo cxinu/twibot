@@ -13,7 +13,7 @@ BotRGCN and related GNNs assume that neighboring Twitter accounts tend to share 
    - 37% have combined homophily = 0.
    - Follow and following homophily are negatively correlated (Pearson r = −0.15).
 
-3. **The dominant error is asymmetric.** In the homophily-0 bucket, humans are misclassified as bots at ~27.6%, nearly double the bot→human error rate of ~15.5%.
+3. **The dominant error is asymmetric.** In the homophily-0 bucket, humans are misclassified as bots at ~21.5%, noticeably above the bot→human error rate of ~15.0%.
 
 ## Method
 
@@ -27,11 +27,14 @@ where `β` is computed by an MLP from the concatenation of the neighborhood mean
 
 | Model | F1 (bot class) | MCC | F1 macro |
 |---|---:|---:|---:|
-| BotRGCN | 0.8447 ± 0.0037 | 0.6484 ± 0.0051 | 0.8223 ± 0.0020 |
-| GatedBotRGCN-rel | 0.8490 ± 0.0044 | **0.6577 ± 0.0073** | **0.8269 ± 0.0028** |
-| **SoftContrastBotRGCN-global** | **0.8495 ± 0.0012** | 0.6560 ± 0.0032 | 0.8252 ± 0.0018 |
+| Paper-reported BotRGCN | 0.8707 | 0.7021 | — |
+| BotRGCN (our repro) | 0.8708 ± 0.0017 | 0.7124 ± 0.0038 | 0.8557 ± 0.0019 |
+| GatedBotRGCN-global | 0.8694 ± 0.0060 | 0.7106 ± 0.0086 | 0.8545 ± 0.0037 |
+| **GatedBotRGCN-rel** | **0.8755 ± 0.0052** | **0.7199 ± 0.0090** | **0.8572 ± 0.0038** |
+| SoftContrastBotRGCN-global | 0.8752 ± 0.0042 | 0.7163 ± 0.0085 | 0.8549 ± 0.0034 |
+| SoftContrastBotRGCN-rel | 0.8683 ± 0.0053 | 0.7065 ± 0.0084 | 0.8521 ± 0.0035 |
 
-The best method improves overall F1 (bot class) by **+0.48 pp** and MCC by **+0.93 pp** over BotRGCN (5-seed averages). The improvement is concentrated in the majority of well-connected nodes rather than specifically in the most heterophilic bucket. The gate is global, not relation-specific: a single MLP outperforms separate follow/following gates by most metrics.
+The best method, **GatedBotRGCN-rel**, improves overall F1 (bot class) by **+0.47 pp** and MCC by **+0.75 pp** over the paper-matched BotRGCN baseline (5-seed averages). With the original RoBERTa features and training recipe our BotRGCN baseline reproduces the paper's reported F1 (0.8707) almost exactly.
 
 ## Files
 

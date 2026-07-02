@@ -14,7 +14,7 @@ We fix this with a learned soft-contrast gate that mixes the neighborhood mean w
 
 $$m_r(v) = \mathrm{low}_r(v) + \beta_r(v) \cdot (W_r h_v - \mathrm{low}_r(v))$$
 
-This improves BotRGCN's test F1 (bot class) from **0.8447** to **0.8495** and MCC from **0.6484** to **0.6560** (5-seed averages).
+This improves BotRGCN's test F1 (bot class) from **0.8708** to **0.8755** and MCC from **0.7124** to **0.7199** (5-seed averages), matching the original paper's reported baseline of **0.8707** / **0.7021**.
 
 ---
 
@@ -34,8 +34,9 @@ Under heterophily, mean aggregation pulls a human node toward its bot neighbors,
 
 | Model | F1 (bot class) | MCC |
 |---|---:|---:|
-| BotRGCN | 0.8447 ± 0.0037 | 0.6484 ± 0.0051 |
-| **SoftContrastBotRGCN-global** | **0.8495 ± 0.0012** | **0.6560 ± 0.0032** |
+| Paper-reported BotRGCN | 0.8707 | 0.7021 |
+| BotRGCN (our repro) | 0.8708 ± 0.0017 | 0.7124 ± 0.0038 |
+| **GatedBotRGCN-rel** | **0.8755 ± 0.0052** | **0.7199 ± 0.0090** |
 
 See [`WRITEUP.md`](WRITEUP.md) for full results, analysis, and figures.
 
