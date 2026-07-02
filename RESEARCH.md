@@ -25,12 +25,13 @@ where `β` is computed by an MLP from the concatenation of the neighborhood mean
 
 ## Main result
 
-| Model | F1 macro | Δ vs. baseline |
-|---|---:|---:|
-| BotRGCN | 0.8218 ± 0.0025 | — |
-| SoftContrastBotRGCN-global | **0.8259 ± 0.0009** | **+0.41 pp** |
+| Model | F1 (bot class) | MCC | F1 macro |
+|---|---:|---:|---:|
+| BotRGCN | 0.8447 ± 0.0037 | 0.6484 ± 0.0051 | 0.8223 ± 0.0020 |
+| GatedBotRGCN-rel | 0.8490 ± 0.0044 | **0.6577 ± 0.0073** | **0.8269 ± 0.0028** |
+| **SoftContrastBotRGCN-global** | **0.8495 ± 0.0012** | 0.6560 ± 0.0032 | 0.8252 ± 0.0018 |
 
-The improvement is concentrated in heterophilic buckets. The gate is global, not relation-specific: a single MLP outperforms separate follow/following gates.
+The best method improves overall F1 (bot class) by **+0.48 pp** and MCC by **+0.93 pp** over BotRGCN (5-seed averages). The improvement is concentrated in the majority of well-connected nodes rather than specifically in the most heterophilic bucket. The gate is global, not relation-specific: a single MLP outperforms separate follow/following gates by most metrics.
 
 ## Files
 

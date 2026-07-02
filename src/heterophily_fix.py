@@ -20,7 +20,12 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    matthews_corrcoef,
+)
 from torch.optim import Adam
 
 from models import BotRGCN, GatedBotRGCN, SoftContrastBotRGCN
@@ -36,7 +41,7 @@ OUTPUT_CSV = os.path.join(OUTPUT_DIR, "heterophily_fix_results.csv")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-SEEDS = [42, 123, 456]
+SEEDS = [42, 123, 456, 2024, 9999]
 EPOCHS = 200
 PATIENCE = 20
 LR = 1e-3
@@ -206,13 +211,10 @@ def evaluate(model, data, mask):
     y_true = d.y[m].cpu().numpy()
     y_pred = (y_prob >= 0.5).astype(int)
     acc = accuracy_score(y_true, y_pred)
-    f1_m = f1_score(y_true, y_pred, average="macro")
-    f1_b = f1_score(y_true, y_pred, average="binary")
-    try:
-        auc = roc_auc_score(y_true, y_prob)
-    except Exception:
-        auc = float("nan")
-    return y_true, y_pred, y_prob, acc, f1_m, f1_b, auc
+    f1_binary = f1_score(y_true, y_pred, average="binary")
+    f1_macro = f1_score(y_true, y_pred, average="macro")
+    mcc = matthews_corrcoef(y_true, y_pred)
+    return y_true, y_pred, y_prob, acc, f1_binary, f1_macro, mcc
 
 
 def bucket_metrics(y_true, y_pred, y_prob, h_vals, relation_name, variant):
@@ -225,18 +227,20 @@ def bucket_metrics(y_true, y_pred, y_prob, h_vals, relation_name, variant):
             continue
         yt_b = y_true[mask]
         yp_b = y_pred[mask]
-        ypr_b = y_prob[mask]
+        both_classes = len(set(yt_b)) > 1
         acc_b = accuracy_score(yt_b, yp_b)
-        f1_b = f1_score(yt_b, yp_b, average="macro") if len(set(yt_b)) > 1 else float("nan")
-        auc_b = roc_auc_score(yt_b, ypr_b) if len(set(yt_b)) > 1 else float("nan")
+        f1_binary_b = f1_score(yt_b, yp_b, average="binary")
+        f1_macro_b = f1_score(yt_b, yp_b, average="macro") if both_classes else float("nan")
+        mcc_b = matthews_corrcoef(yt_b, yp_b) if both_classes else float("nan")
         rows.append({
             "variant": variant,
             "relation": relation_name,
             "bucket": bname,
             "n_test": n_bin,
             "acc": round(acc_b, 4),
-            "f1_macro": round(f1_b, 4),
-            "auc": round(auc_b, 4),
+            "f1_binary": round(f1_binary_b, 4),
+            "f1_macro": round(f1_macro_b, 4),
+            "mcc": round(mcc_b, 4),
         })
     return rows
 
@@ -271,6 +275,10 @@ configs = [
     {
         "name": "GatedBotRGCN-global",
         "model_fn": lambda: GatedBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=False),
+    },
+    {
+        "name": "GatedBotRGCN-rel",
+        "model_fn": lambda: GatedBotRGCN(P_DIM, T_DIM, TO_DIM, N_DIM, relation_specific=True),
     },
     {
         "name": "SoftContrastBotRGCN-global",
@@ -311,30 +319,36 @@ for cfg in configs:
         print(f"  Seed {s} ...", end="", flush=True)
         model = cfg["model_fn"]()
         model = train_one_seed(model, graph, TRAIN_MASK, VAL_MASK, s)
-        yt, yp, ypr, acc, f1m, f1b, auc = evaluate(model, graph, TEST_MASK)
+        yt, yp, ypr, acc, f1_binary, f1_macro, mcc = evaluate(model, graph, TEST_MASK)
         all_y_true.append(yt)
         all_y_pred.append(yp)
         all_y_prob.append(ypr)
-        seed_metrics.append({"acc": acc, "f1_macro": f1m, "auc": auc})
-        print(f"  Acc={acc:.4f}  F1_macro={f1m:.4f}  AUC={auc:.4f}" if not np.isnan(auc)
-              else f"  Acc={acc:.4f}  F1_macro={f1m:.4f}  AUC=nan")
+        seed_metrics.append({"acc": acc, "f1_binary": f1_binary,
+                             "f1_macro": f1_macro, "mcc": mcc})
+        print(f"  Acc={acc:.4f}  F1={f1_binary:.4f}  "
+              f"F1_macro={f1_macro:.4f}  MCC={mcc:.4f}")
 
     # Aggregate over seeds
     acc_mean = np.mean([m["acc"] for m in seed_metrics])
     acc_std = np.std([m["acc"] for m in seed_metrics])
-    f1_mean = np.mean([m["f1_macro"] for m in seed_metrics])
-    f1_std = np.std([m["f1_macro"] for m in seed_metrics])
-    auc_mean = np.mean([m["auc"] for m in seed_metrics])
-    auc_std = np.std([m["auc"] for m in seed_metrics])
+    f1_binary_mean = np.mean([m["f1_binary"] for m in seed_metrics])
+    f1_binary_std = np.std([m["f1_binary"] for m in seed_metrics])
+    f1_macro_mean = np.mean([m["f1_macro"] for m in seed_metrics])
+    f1_macro_std = np.std([m["f1_macro"] for m in seed_metrics])
+    mcc_mean = np.mean([m["mcc"] for m in seed_metrics])
+    mcc_std = np.std([m["mcc"] for m in seed_metrics])
 
     print(f"\n  Overall: Acc={acc_mean:.4f}±{acc_std:.4f}  "
-          f"F1_macro={f1_mean:.4f}±{f1_std:.4f}  AUC={auc_mean:.4f}±{auc_std:.4f}")
+          f"F1={f1_binary_mean:.4f}±{f1_binary_std:.4f}  "
+          f"F1_macro={f1_macro_mean:.4f}±{f1_macro_std:.4f}  "
+          f"MCC={mcc_mean:.4f}±{mcc_std:.4f}")
 
     all_results.append({
         "variant": name, "metric": "overall",
         "acc": round(acc_mean, 4), "acc_std": round(acc_std, 4),
-        "f1_macro": round(f1_mean, 4), "f1_macro_std": round(f1_std, 4),
-        "auc": round(auc_mean, 4), "auc_std": round(auc_std, 4),
+        "f1_binary": round(f1_binary_mean, 4), "f1_binary_std": round(f1_binary_std, 4),
+        "f1_macro": round(f1_macro_mean, 4), "f1_macro_std": round(f1_macro_std, 4),
+        "mcc": round(mcc_mean, 4), "mcc_std": round(mcc_std, 4),
     })
 
     # Ensemble predictions for per-bucket / confusion analysis
@@ -364,23 +378,25 @@ print("=" * 76)
 print("Summary: Overall performance")
 print("=" * 76)
 overall_df = pd.DataFrame([r for r in all_results if r.get("metric") == "overall"])
-print(overall_df[["variant", "acc", "f1_macro", "auc"]].to_string(index=False))
+overall_display = overall_df.rename(columns={"f1_binary": "f1", "f1_macro": "f1_macro"})
+print(overall_display[["variant", "acc", "f1", "f1_macro", "mcc"]].to_string(index=False))
 
 
-def print_bucket_table(relation_name):
+def print_bucket_table(relation_name, metric_name="f1_binary", display_name="F1"):
     print()
-    print(f"  Per-bucket F1_macro ({relation_name})")
+    print(f"  Per-bucket {display_name} ({relation_name})")
     sub = pd.DataFrame([r for r in all_results if r.get("relation") == relation_name])
-    pivot = sub.pivot(index="bucket", columns="variant", values="f1_macro")
+    pivot = sub.pivot(index="bucket", columns="variant", values=metric_name)
     pivot = pivot.reindex([b for _, _, b in HOMOPHILY_BINS])
     print(pivot.to_string())
     counts = sub.groupby("bucket")["n_test"].first().reindex([b for _, _, b in HOMOPHILY_BINS])
     print(f"  n_test per bucket: {counts.to_dict()}")
 
 
-print_bucket_table("combined")
-print_bucket_table("follow")
-print_bucket_table("following")
+print_bucket_table("combined", "f1_binary")
+print_bucket_table("combined", "f1_macro")
+print_bucket_table("follow", "f1_binary")
+print_bucket_table("following", "f1_binary")
 
 print()
 print("=" * 76)

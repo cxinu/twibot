@@ -1,5 +1,6 @@
 variant,bucket,n,tn,fp,fn,tp,fp_rate_human,fn_rate_bot
-BotRGCN,0,409,118,45,38,208,0.2761,0.1545
-GatedBotRGCN-global,0,409,122,41,41,205,0.2515,0.1667
-SoftContrastBotRGCN-global,0,409,119,44,37,209,0.2699,0.1504
-SoftContrastBotRGCN-rel,0,409,120,43,42,204,0.2638,0.1707
+BotRGCN,0,409,119,44,36,210,0.2699,0.1463
+GatedBotRGCN-global,0,409,121,42,40,206,0.2577,0.1626
+GatedBotRGCN-rel,0,409,120,43,41,205,0.2638,0.1667
+SoftContrastBotRGCN-global,0,409,118,45,40,206,0.2761,0.1626
+SoftContrastBotRGCN-rel,0,409,119,44,42,204,0.2699,0.1707

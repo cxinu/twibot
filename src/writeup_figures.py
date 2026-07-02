@@ -276,36 +276,46 @@ buckets = results_df[(results_df["relation"] == "combined") &
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-# Left: overall F1
+# Left: overall F1 (binary) and MCC
 ax = axes[0]
 variants = ["BotRGCN", "GatedBotRGCN-global", "SoftContrastBotRGCN-global"]
 rows = overall[overall["variant"].isin(variants)].set_index("variant").reindex(variants)
 x = np.arange(len(variants))
-vals = rows["f1_macro"].values
-errs = rows["f1_macro_std"].fillna(0).values
-bars = ax.bar(x, vals, yerr=errs, color=[COLOR_NEUTRAL, COLOR_ACCENT, COLOR_BOT],
-              capsize=5, edgecolor="white", linewidth=2)
+width = 0.3
+
+f1_vals = rows["f1_binary"].values
+f1_errs = rows["f1_binary_std"].fillna(0).values
+mcc_vals = rows["mcc"].values
+mcc_errs = rows["mcc_std"].fillna(0).values
+
+bars1 = ax.bar(x - width / 2, f1_vals, width, yerr=f1_errs,
+               color=[COLOR_NEUTRAL, COLOR_ACCENT, COLOR_BOT],
+               capsize=5, edgecolor="white", linewidth=2, label="F1 (bot class)")
+bars2 = ax.bar(x + width / 2, mcc_vals, width, yerr=mcc_errs,
+               color=[COLOR_NEUTRAL, COLOR_ACCENT, COLOR_BOT],
+               capsize=5, edgecolor="white", linewidth=2, alpha=0.5, label="MCC")
 ax.set_xticks(x)
 ax.set_xticklabels(["BotRGCN\n(baseline)", "Gated\n(global)", "SoftContrast\n(global)"],
                    fontsize=10)
-ax.set_ylabel("F1 macro")
-ax.set_ylim(0.815, 0.830)
-ax.set_title("Overall test F1 macro")
+ax.set_ylabel("Score")
+ax.set_ylim(0.60, 0.87)
+ax.set_title("Overall test performance")
 ax.grid(axis="y", alpha=0.3)
-for bar, val in zip(bars, vals):
-    ax.text(bar.get_x() + bar.get_width() / 2, val + 0.0008,
-            f"{val:.4f}", ha="center", va="bottom", fontsize=10)
+ax.legend(fontsize=9)
+for bar, val in zip(bars1, f1_vals):
+    ax.text(bar.get_x() + bar.get_width() / 2, val + 0.003,
+            f"{val:.4f}", ha="center", va="bottom", fontsize=9)
 
-# Right: per-bucket F1
+# Right: per-bucket F1 (binary)
 ax = axes[1]
-pivot = buckets.pivot(index="bucket", columns="variant", values="f1_macro")
+pivot = buckets.pivot(index="bucket", columns="variant", values="f1_binary")
 pivot = pivot[[c for c in variants if c in pivot.columns]]
 pivot = pivot.reindex(["0", "0.01-0.25", "0.26-0.50", "0.51+"])
 pivot.plot(kind="bar", ax=ax, color=[COLOR_NEUTRAL, COLOR_ACCENT, COLOR_BOT],
            edgecolor="white", linewidth=1.5)
 ax.set_xlabel("Combined homophily bucket")
-ax.set_ylabel("F1 macro")
-ax.set_title("F1 macro stratified by heterophily")
+ax.set_ylabel("F1 (bot class)")
+ax.set_title("F1 stratified by heterophily")
 ax.legend(["BotRGCN", "Gated (global)", "SoftContrast (global)"],
           loc="lower right", fontsize=9)
 ax.set_xticklabels(pivot.index, rotation=0)
