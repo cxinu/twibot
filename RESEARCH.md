@@ -17,30 +17,29 @@ BotRGCN and related GNNs assume that neighboring Twitter accounts tend to share 
 
 ## Method
 
-We replace RGCN's fixed mean aggregation with a learned **soft-contrast gate**:
+We replace RGCN's fixed mean aggregation with a learned adaptive gate. Two variants are explored:
 
-$$m_r(v) = \mathrm{low}_r(v) + \beta_r(v) \cdot (W_r h_v - \mathrm{low}_r(v))$$
+- **Hard low/high gate:** `m = α·low + (1−α)·high`, where `α` is predicted from `[ego ‖ low]`.
+- **Soft-contrast gate:** `m = low + β·(ego − low)`, where `β` is predicted by an MLP.
 
-where `β` is computed by an MLP from the concatenation of the neighborhood mean and the transformed ego. The model starts at `β ≈ 0` (standard RGCN) and learns to trust the ego more in heterophilic neighborhoods.
+Both gates optionally receive an explicit **cosine-similarity** scalar between the ego and the neighborhood mean, so the gate can distinguish structurally heterophilic but semantically similar neighbors from true opposite-class neighbors.
 
 ## Main result
 
 | Model | F1 (bot class) | MCC | F1 macro |
 |---|---:|---:|---:|
 | Paper-reported BotRGCN | 0.8707 | 0.7021 | — |
-| BotRGCN (our repro) | 0.8708 ± 0.0017 | 0.7124 ± 0.0038 | 0.8557 ± 0.0019 |
-| GatedBotRGCN-global | 0.8694 ± 0.0060 | 0.7106 ± 0.0086 | 0.8545 ± 0.0037 |
-| **GatedBotRGCN-rel** | **0.8755 ± 0.0052** | **0.7199 ± 0.0090** | **0.8572 ± 0.0038** |
-| SoftContrastBotRGCN-global | 0.8752 ± 0.0042 | 0.7163 ± 0.0085 | 0.8549 ± 0.0034 |
-| SoftContrastBotRGCN-rel | 0.8683 ± 0.0053 | 0.7065 ± 0.0084 | 0.8521 ± 0.0035 |
+| BotRGCN (repro + threshold tuning) | 0.8785 ± 0.0030 | 0.7249 ± 0.0055 | 0.8569 ± 0.0027 |
+| **GatedBotRGCN-global** (validation-selected) | **0.8801 ± 0.0024** | **0.7273 ± 0.0047** | **0.8581 ± 0.0022** |
 
-The best method, **GatedBotRGCN-rel**, improves overall F1 (bot class) by **+0.47 pp** and MCC by **+0.75 pp** over the paper-matched BotRGCN baseline (5-seed averages). With the original RoBERTa features and training recipe our BotRGCN baseline reproduces the paper's reported F1 (0.8707) almost exactly.
+The final model is selected by **validation F1**, not test-set performance. Thresholds are tuned per seed on the validation set. The selected **GatedBotRGCN-global** improves F1 by **+0.94 pp** over the paper-reported baseline and by **+0.16 pp** over the threshold-tuned BotRGCN repro. The paired seed delta vs. the threshold-tuned baseline is **+0.16 ± 0.48 pp** (Wilcoxon p = 0.63), so the extra gain from the gate is modest and not statistically significant with 5 seeds.
 
 ## Files
 
 - `src/degree_bucket_analysis.py` — Phase 1 analysis
 - `src/heterophily_analysis.py` — Phase 2 analysis
 - `src/heterophily_fix.py` — Phase 3 experiments
+- `src/correct_and_smooth.py` — C&S post-processing ablation
 - `src/writeup_figures.py` — Figure generation
 - `src/models.py` — `BotRGCN`, `GatedRGCNConv`, `SoftContrastRGCNConv`
 - `WRITEUP.md` — Full research narrative with figures

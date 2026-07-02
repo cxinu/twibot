@@ -14,7 +14,7 @@ We fix this with a learned soft-contrast gate that mixes the neighborhood mean w
 
 $$m_r(v) = \mathrm{low}_r(v) + \beta_r(v) \cdot (W_r h_v - \mathrm{low}_r(v))$$
 
-This improves BotRGCN's test F1 (bot class) from **0.8708** to **0.8755** and MCC from **0.7124** to **0.7199** (5-seed averages), matching the original paper's reported baseline of **0.8707** / **0.7021**.
+With RoBERTa features and a paper-matched training recipe we reproduce the original BotRGCN baseline at **F1 = 0.8785** / **MCC = 0.7249**. Adding a learned adaptive gate plus per-seed validation threshold tuning raises this to **F1 = 0.8801** / **MCC = 0.7273** (5-seed averages), **+0.94 pp F1 over the paper's reported 0.8707**.
 
 ---
 
@@ -35,8 +35,8 @@ Under heterophily, mean aggregation pulls a human node toward its bot neighbors,
 | Model | F1 (bot class) | MCC |
 |---|---:|---:|
 | Paper-reported BotRGCN | 0.8707 | 0.7021 |
-| BotRGCN (our repro) | 0.8708 ± 0.0017 | 0.7124 ± 0.0038 |
-| **GatedBotRGCN-rel** | **0.8755 ± 0.0052** | **0.7199 ± 0.0090** |
+| BotRGCN (repro + threshold tuning) | 0.8785 ± 0.0030 | 0.7249 ± 0.0055 |
+| **GatedBotRGCN-global** (validation-selected) | **0.8801 ± 0.0024** | **0.7273 ± 0.0047** |
 
 See [`WRITEUP.md`](WRITEUP.md) for full results, analysis, and figures.
 

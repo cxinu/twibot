@@ -61,13 +61,15 @@ class BotRGCN(nn.Module):
         )
         self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+    def _encode(self, des, tweet, num_prop, cat_prop):
         d = self.linear_relu_des(des)
         t = self.linear_relu_tweet(tweet)
         n = self.linear_relu_num_prop(num_prop)
         c = self.linear_relu_cat_prop(cat_prop)
-        x = torch.cat((d, t, n, c), dim=1)
-        x = self.linear_relu_input(x)
+        return torch.cat((d, t, n, c), dim=1)
+
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        x = self.linear_relu_input(self._encode(des, tweet, num_prop, cat_prop))
         x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.rgcn(x, edge_index, edge_type)
@@ -75,6 +77,17 @@ class BotRGCN(nn.Module):
         x = self.linear_output2(x)
         return x
 
+
+
+
+
+def _gate_input(ego, low, use_similarity):
+    """Build gate input, optionally appending cosine similarity."""
+    if use_similarity:
+        # Cosine similarity in [-1, 1]; unsqueeze to [N, 1].
+        sim = F.cosine_similarity(ego, low, dim=1, eps=1e-8).unsqueeze(1)
+        return torch.cat([ego, low, sim], dim=1)
+    return torch.cat([ego, low], dim=1)
 
 class GatedRGCNConv(MessagePassing):
     """RGCN-style convolution with a per-node, per-relation low/high gate.
@@ -90,20 +103,23 @@ class GatedRGCNConv(MessagePassing):
     """
 
     def __init__(self, in_channels, out_channels, num_relations=2,
-                 relation_specific=True, dropout=0.1, att_bias_init=0.0):
+                 relation_specific=True, dropout=0.1, att_bias_init=0.0,
+                 use_feature_similarity=False):
         super().__init__(aggr='add')
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_relations = num_relations
         self.relation_specific = relation_specific
         self.dropout = dropout
+        self.use_feature_similarity = use_feature_similarity
 
         self.weight = nn.Parameter(torch.Tensor(num_relations, in_channels, out_channels))
+        att_dim = 2 * out_channels + (1 if use_feature_similarity else 0)
         if relation_specific:
-            self.att = nn.Parameter(torch.Tensor(num_relations, 2 * out_channels))
+            self.att = nn.Parameter(torch.Tensor(num_relations, att_dim))
             self.att_bias = nn.Parameter(torch.Tensor(num_relations))
         else:
-            self.att = nn.Parameter(torch.Tensor(2 * out_channels))
+            self.att = nn.Parameter(torch.Tensor(att_dim))
             self.att_bias = nn.Parameter(torch.Tensor(1))
 
         self.att_bias_init = att_bias_init
@@ -141,7 +157,7 @@ class GatedRGCNConv(MessagePassing):
             high = self_trans - low
 
             # Gate alpha(v) from concatenation of ego and low-pass term.
-            concat = torch.cat([x, low], dim=1)  # [N, 2*out]
+            concat = _gate_input(x, low, self.use_feature_similarity)
             concat = F.dropout(concat, p=self.dropout, training=self.training)
             if self.relation_specific:
                 logits = concat @ self.att[r] + self.att_bias[r]  # [N]
@@ -153,13 +169,49 @@ class GatedRGCNConv(MessagePassing):
 
         return F.dropout(out, p=self.dropout, training=self.training)
 
+    def forward_and_gates(self, x, edge_index, edge_type):
+        """Return (output, gates) where gates[r] is [N,1] alpha for relation r."""
+        out = torch.zeros(x.size(0), self.out_channels, device=x.device, dtype=x.dtype)
+        gates = {}
+        for r in range(self.num_relations):
+            mask = edge_type == r
+            n_r = int(mask.sum().item())
+            self_trans = x @ self.weight[r]
+            if n_r == 0:
+                out += self_trans
+                gates[r] = torch.full((x.size(0), 1), 0.5, device=x.device, dtype=x.dtype)
+                continue
+
+            edge_r = edge_index[:, mask]
+            src, dst = edge_r[0], edge_r[1]
+            messages = x[src] @ self.weight[r]
+            low = torch.zeros(x.size(0), self.out_channels, device=x.device, dtype=x.dtype)
+            low.index_add_(0, dst, messages)
+            deg = torch.bincount(dst, minlength=x.size(0)).float().clamp(min=1).unsqueeze(1)
+            low = low / deg
+            self_trans = x @ self.weight[r]
+            high = self_trans - low
+
+            concat = _gate_input(x, low, self.use_feature_similarity)
+            concat = F.dropout(concat, p=self.dropout, training=self.training)
+            if self.relation_specific:
+                logits = concat @ self.att[r] + self.att_bias[r]
+            else:
+                logits = concat @ self.att + self.att_bias
+            alpha = torch.sigmoid(logits).unsqueeze(1)
+            gates[r] = alpha
+            out += alpha * low + (1.0 - alpha) * high
+
+        return F.dropout(out, p=self.dropout, training=self.training), gates
+
 
 class GatedBotRGCN(nn.Module):
     """BotRGCN where the RGCN layer uses relation-specific low/high gates."""
 
     def __init__(self, des_size=768, tweet_size=768, num_prop_size=5,
                  cat_prop_size=3, embedding_dimension=32, dropout=0.1,
-                 num_relations=2, relation_specific=True, att_bias_init=0.0):
+                 num_relations=2, relation_specific=True, att_bias_init=0.0,
+                 use_feature_similarity=False):
         super().__init__()
         self.dropout = dropout
         h = embedding_dimension // 4
@@ -182,7 +234,8 @@ class GatedBotRGCN(nn.Module):
 
         self.rgcn = GatedRGCNConv(embedding_dimension, embedding_dimension,
                                   num_relations, relation_specific=relation_specific,
-                                  dropout=dropout, att_bias_init=att_bias_init)
+                                  dropout=dropout, att_bias_init=att_bias_init,
+                                  use_feature_similarity=use_feature_similarity)
 
         self.linear_relu_output1 = nn.Sequential(
             nn.Linear(embedding_dimension, embedding_dimension),
@@ -190,19 +243,30 @@ class GatedBotRGCN(nn.Module):
         )
         self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+    def _encode(self, des, tweet, num_prop, cat_prop):
         d = self.linear_relu_des(des)
         t = self.linear_relu_tweet(tweet)
         n = self.linear_relu_num_prop(num_prop)
         c = self.linear_relu_cat_prop(cat_prop)
-        x = torch.cat((d, t, n, c), dim=1)
-        x = self.linear_relu_input(x)
+        return torch.cat((d, t, n, c), dim=1)
+
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        x = self.linear_relu_input(self._encode(des, tweet, num_prop, cat_prop))
         x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.rgcn(x, edge_index, edge_type)
         x = self.linear_relu_output1(x)
         x = self.linear_output2(x)
         return x
+
+    def forward_and_gates(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        x = self.linear_relu_input(self._encode(des, tweet, num_prop, cat_prop))
+        x, gates1 = self.rgcn.forward_and_gates(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x, gates2 = self.rgcn.forward_and_gates(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return x, [gates1, gates2]
 
 
 class SoftContrastRGCNConv(MessagePassing):
@@ -222,7 +286,8 @@ class SoftContrastRGCNConv(MessagePassing):
     """
 
     def __init__(self, in_channels, out_channels, num_relations=2,
-                 relation_specific=True, dropout=0.1, use_raw_ego=False):
+                 relation_specific=True, dropout=0.1, use_raw_ego=False,
+                 use_feature_similarity=False):
         super().__init__(aggr='add')
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -230,14 +295,16 @@ class SoftContrastRGCNConv(MessagePassing):
         self.relation_specific = relation_specific
         self.dropout = dropout
         self.use_raw_ego = use_raw_ego
+        self.use_feature_similarity = use_feature_similarity
 
         self.weight = nn.Parameter(torch.Tensor(num_relations, in_channels, out_channels))
 
         mlp_hidden = out_channels
+        gate_in = 2 * out_channels + (1 if use_feature_similarity else 0)
         if relation_specific:
             self.gate_mlps = nn.ModuleList([
                 nn.Sequential(
-                    nn.Linear(2 * out_channels, mlp_hidden),
+                    nn.Linear(gate_in, mlp_hidden),
                     nn.LeakyReLU(),
                     nn.Dropout(dropout),
                     nn.Linear(mlp_hidden, 1),
@@ -246,7 +313,7 @@ class SoftContrastRGCNConv(MessagePassing):
             ])
         else:
             self.gate_mlp = nn.Sequential(
-                nn.Linear(2 * out_channels, mlp_hidden),
+                nn.Linear(gate_in, mlp_hidden),
                 nn.LeakyReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(mlp_hidden, 1),
@@ -290,7 +357,7 @@ class SoftContrastRGCNConv(MessagePassing):
 
             # beta from concatenation of ego and low-pass term.
             ego = x if self.use_raw_ego else self_trans
-            concat = torch.cat([ego, low], dim=1)
+            concat = _gate_input(ego, low, self.use_feature_similarity)
             if self.relation_specific:
                 beta = self.gate_mlps[r](concat)
             else:
@@ -300,13 +367,46 @@ class SoftContrastRGCNConv(MessagePassing):
 
         return F.dropout(out, p=self.dropout, training=self.training)
 
+    def forward_and_gates(self, x, edge_index, edge_type):
+        """Return (output, gates) where gates[r] is [N,1] beta for relation r."""
+        out = torch.zeros(x.size(0), self.out_channels, device=x.device, dtype=x.dtype)
+        gates = {}
+        for r in range(self.num_relations):
+            mask = edge_type == r
+            n_r = int(mask.sum().item())
+            self_trans = x @ self.weight[r]
+            if n_r == 0:
+                out += self_trans
+                gates[r] = torch.full((x.size(0), 1), 0.5, device=x.device, dtype=x.dtype)
+                continue
+
+            edge_r = edge_index[:, mask]
+            src, dst = edge_r[0], edge_r[1]
+            messages = x[src] @ self.weight[r]
+            low = torch.zeros(x.size(0), self.out_channels, device=x.device, dtype=x.dtype)
+            low.index_add_(0, dst, messages)
+            deg = torch.bincount(dst, minlength=x.size(0)).float().clamp(min=1).unsqueeze(1)
+            low = low / deg
+
+            ego = x if self.use_raw_ego else self_trans
+            concat = _gate_input(ego, low, self.use_feature_similarity)
+            if self.relation_specific:
+                beta = self.gate_mlps[r](concat)
+            else:
+                beta = self.gate_mlp(concat)
+            gates[r] = beta
+            out += low + beta * (ego - low)
+
+        return F.dropout(out, p=self.dropout, training=self.training), gates
+
 
 class SoftContrastBotRGCN(nn.Module):
     """BotRGCN with soft-contrast relation-specific/global gates."""
 
     def __init__(self, des_size=768, tweet_size=768, num_prop_size=5,
                  cat_prop_size=3, embedding_dimension=32, dropout=0.1,
-                 num_relations=2, relation_specific=True, use_raw_ego=False):
+                 num_relations=2, relation_specific=True, use_raw_ego=False,
+                 use_feature_similarity=False):
         super().__init__()
         self.dropout = dropout
         h = embedding_dimension // 4
@@ -329,7 +429,8 @@ class SoftContrastBotRGCN(nn.Module):
 
         self.rgcn = SoftContrastRGCNConv(embedding_dimension, embedding_dimension,
                                          num_relations, relation_specific=relation_specific,
-                                         dropout=dropout, use_raw_ego=use_raw_ego)
+                                         dropout=dropout, use_raw_ego=use_raw_ego,
+                                         use_feature_similarity=use_feature_similarity)
 
         self.linear_relu_output1 = nn.Sequential(
             nn.Linear(embedding_dimension, embedding_dimension),
@@ -337,16 +438,27 @@ class SoftContrastBotRGCN(nn.Module):
         )
         self.linear_output2 = nn.Linear(embedding_dimension, 2)
 
-    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+    def _encode(self, des, tweet, num_prop, cat_prop):
         d = self.linear_relu_des(des)
         t = self.linear_relu_tweet(tweet)
         n = self.linear_relu_num_prop(num_prop)
         c = self.linear_relu_cat_prop(cat_prop)
-        x = torch.cat((d, t, n, c), dim=1)
-        x = self.linear_relu_input(x)
+        return torch.cat((d, t, n, c), dim=1)
+
+    def forward(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        x = self.linear_relu_input(self._encode(des, tweet, num_prop, cat_prop))
         x = self.rgcn(x, edge_index, edge_type)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.rgcn(x, edge_index, edge_type)
         x = self.linear_relu_output1(x)
         x = self.linear_output2(x)
         return x
+
+    def forward_and_gates(self, des, tweet, num_prop, cat_prop, edge_index, edge_type):
+        x = self.linear_relu_input(self._encode(des, tweet, num_prop, cat_prop))
+        x, gates1 = self.rgcn.forward_and_gates(x, edge_index, edge_type)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x, gates2 = self.rgcn.forward_and_gates(x, edge_index, edge_type)
+        x = self.linear_relu_output1(x)
+        x = self.linear_output2(x)
+        return x, [gates1, gates2]
