@@ -1,0 +1,53 @@
+# Research Summary: Adaptive Aggregation for Heterophilic Bot Detection on TwiBot-20
+
+## Problem
+
+BotRGCN and related GNNs assume that neighboring Twitter accounts tend to share the same label (homophily). We show this assumption is violated on TwiBot-20, where users are frequently connected to accounts of the opposite class (heterophily). Standard mean aggregation therefore degrades classification performance for a large subset of nodes.
+
+## Key findings
+
+1. **Isolated/low-degree nodes are not the weak point.** TwiBot-20's crawler capped neighbors at ~10 per direction, producing a narrow degree distribution. Low-degree nodes are easy and overwhelmingly human; the difficult bucket is the well-connected majority.
+
+2. **Heterophily is widespread.**
+   - 72% of nodes have follow-homophily < 0.3.
+   - 37% have combined homophily = 0.
+   - Follow and following homophily are negatively correlated (Pearson r = −0.15).
+
+3. **The dominant error is asymmetric.** In the homophily-0 bucket, humans are misclassified as bots at ~27.6%, nearly double the bot→human error rate of ~15.5%.
+
+## Method
+
+We replace RGCN's fixed mean aggregation with a learned **soft-contrast gate**:
+
+$$m_r(v) = \mathrm{low}_r(v) + \beta_r(v) \cdot (W_r h_v - \mathrm{low}_r(v))$$
+
+where `β` is computed by an MLP from the concatenation of the neighborhood mean and the transformed ego. The model starts at `β ≈ 0` (standard RGCN) and learns to trust the ego more in heterophilic neighborhoods.
+
+## Main result
+
+| Model | F1 macro | Δ vs. baseline |
+|---|---:|---:|
+| BotRGCN | 0.8218 ± 0.0025 | — |
+| SoftContrastBotRGCN-global | **0.8259 ± 0.0009** | **+0.41 pp** |
+
+The improvement is concentrated in heterophilic buckets. The gate is global, not relation-specific: a single MLP outperforms separate follow/following gates.
+
+## Files
+
+- `src/degree_bucket_analysis.py` — Phase 1 analysis
+- `src/heterophily_analysis.py` — Phase 2 analysis
+- `src/heterophily_fix.py` — Phase 3 experiments
+- `src/writeup_figures.py` — Figure generation
+- `src/models.py` — `BotRGCN`, `GatedRGCNConv`, `SoftContrastRGCNConv`
+- `WRITEUP.md` — Full research narrative with figures
+
+## Reproduction
+
+```bash
+uv run python src/degree_bucket_analysis.py
+uv run python src/heterophily_analysis.py
+uv run python src/heterophily_fix.py
+uv run python src/writeup_figures.py
+```
+
+See `WRITEUP.md` for the complete research story.
