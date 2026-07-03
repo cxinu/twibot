@@ -42,10 +42,10 @@ longer tell them apart.
 
 |                     Homophily (ideal)                     |                   Heterophily (real-world)                   |
 | :-------------------------------------------------------: | :----------------------------------------------------------: |
-| ![](figures/heterophily.svg)                              |                                                              |
+| ![](figures/homophily.svg)                               | ![](figures/heterophily_graph.svg)                          |
 | *Birds of a feather — GNNs work well.*                    | *Bots hide among humans — GNNs get confused.*                |
 
-> **Run `python figures/render_heterophily.py` to regenerate the illustration above.**
+> **Run `python figures/render_homophily.py` and `python figures/render_heterophily_graph.py` to regenerate.**
 
 ### 2.3 Our Approach in a Nutshell
 
@@ -131,6 +131,7 @@ compared to what the raw features alone could achieve.
 ### 4.1 Overview
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 flowchart TD
     T["Tweets\n(768-d)"] --> E_T["Linear + LR"]
     D["Description\n(768-d)"] --> E_D["Linear + LR"]
@@ -158,17 +159,19 @@ flowchart TD
     EMB --> PROTO["Prototype Head\ncos-sim × τ"]
     EMB --> GATE["Gate MLP\n128 → 32 → 1 → σ"]
 
-    MLP --> MIX((× γ))
-    PROTO --> MIX2((× 1−γ))
+    MLP --> MIX(("× γ"))
+    PROTO --> MIX2(("× 1−γ"))
     GATE --> MIX
     GATE --> MIX2
 
     MIX --> OUT["Final Prediction"]
     MIX2 --> OUT
 
-    style PROTO fill:#f9d5e5,stroke:#a23b72
-    style GATE  fill:#f9d5e5,stroke:#a23b72
-    style MLP   fill:#d5e8f9,stroke:#2e86ab
+    classDef pink fill:#6e3b5e,stroke:#f778ba,color:#f0f0f0
+    classDef blue fill:#2a4d6e,stroke:#58a6ff,color:#f0f0f0
+    classDef green fill:#3d5a3d,stroke:#7ee787,color:#f0f0f0
+    class PROTO,PROTO_HEAD pink
+    class MLP,MLP_HEAD blue
 ```
 
 The architecture has four stages:
@@ -225,6 +228,10 @@ their embeddings.  But if a bot's embedding has already been corrupted by previo
 heterophilous aggregation, the attention scores become unreliable.  It is a vicious
 circle.
 
+![](figures/message_passing.svg)
+
+> **Run `python figures/render_message_passing.py` to regenerate this illustration.**
+
 ### 5.2 Edge Features: A Direct Measure of Compatibility
 
 AdaRelBot breaks this cycle by providing an *external* signal about the compatibility of
@@ -232,15 +239,16 @@ each edge.  For every directed edge $u \rightarrow v$, we precompute three numbe
 
 | Component | Formula | Meaning |
 |-----------|---------|---------|
-| Description similarity | $\cos(\mathbf{x}_{\text{des}}^{(u)}, \mathbf{x}_{\text{des}}^{(v)})$ | Do the two users describe themselves similarly? |
-| Tweet similarity | $\cos(\mathbf{x}_{\text{tweet}}^{(u)}, \mathbf{x}_{\text{tweet}}^{(v)})$ | Do they tweet about similar things? |
-| Relation type | $r_{uv} \in \{0, 1\}$ | Is this a *follow* ($u$ follows $v$, $r=0$) or *following* ($v$ follows $u$, $r=1$) edge? |
+| Description similarity | $\cos(\mathbf{x}\_{\text{des}}^{(u)}, \mathbf{x}\_{\text{des}}^{(v)})$ | Do the two users describe themselves similarly? |
+| Tweet similarity | $\cos(\mathbf{x}\_{\text{tweet}}^{(u)}, \mathbf{x}\_{\text{tweet}}^{(v)})$ | Do they tweet about similar things? |
+| Relation type | $r_{uv}$ $\in$ $\{0, 1\}$ | Is this a *follow* ($u$ follows $v$, $r=0$) or *following* ($v$ follows $u$, $r=1$) edge? |
 
 The edge feature vector is then:
 
 $$\mathbf{e}_{uv} = \big[\cos_{\text{des}}(u,v),\;\; \cos_{\text{tweet}}(u,v),\;\; r_{uv}\big] \;\in\; \mathbb{R}^3$$
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 flowchart LR
     U["User u\n(des_u, tweet_u)"] --> COS_D["cos(des_u, des_v)"]
     V["User v\n(des_v, tweet_v)"] --> COS_D
@@ -339,6 +347,7 @@ The final logits are a convex combination:
 $$\mathbf{z}_v = \gamma_v \cdot \mathbf{z}_{\text{mlp}} + (1 - \gamma_v) \cdot \mathbf{z}_{\text{proto}}$$
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 flowchart LR
     H["h_v (128-d)"] --> MLP_H["MLP Head\n128→64→2"]
     H --> NORM_H["L2 Normalize"]
@@ -350,11 +359,12 @@ flowchart LR
     GATE_MLP --> BLEND
     BLEND --> PRED["Final logits (2)"]
 
-    style MLP_H fill:#d5e8f9,stroke:#2e86ab
-    style COS fill:#f9d5e5,stroke:#a23b72
-    style SCALE fill:#f9d5e5,stroke:#a23b72
-    style GATE_MLP fill:#eee,stroke:#666
-    style BLEND fill:#e6f3e6,stroke:#558b2f
+    classDef pink fill:#6e3b5e,stroke:#f778ba,color:#f0f0f0
+    classDef blue fill:#2a4d6e,stroke:#58a6ff,color:#f0f0f0
+    classDef gray fill:#30363d,stroke:#8b949e,color:#f0f0f0
+    class MLP_H blue
+    class COS,SCALE pink
+    class GATE_MLP gray
 ```
 
 > **Intuition**:  When a node's embedding is clean and unambiguous, $\gamma_v \approx 1$
@@ -386,6 +396,10 @@ where:
 When $\gamma = 0$, this reduces to class-weighted cross-entropy.  As $\gamma$ increases,
 the loss contributed by "easy" examples (where $p_{i,y_i} \approx 1$) shrinks toward
 zero, forcing the optimizer to concentrate on examples the model still gets wrong.
+
+![](figures/training_concepts.svg)
+
+> **Run `python figures/render_training_concepts.py` to regenerate this illustration.**
 
 ### 7.2 Training Protocol
 
@@ -461,6 +475,8 @@ AdaRelBot training is stable and not overly sensitive to random initialization.
 
 ### 8.3 Visual Comparison
 
+![](figures/results.svg)
+
 > **Run `python figures/render_results.py` to regenerate this chart.**
 
 The AdaRelBot ensemble achieves the highest accuracy and F1 on the benchmark.  The
@@ -533,10 +549,12 @@ TwiBot-20, it achieves state-of-the-art results across accuracy, F1, and MCC.
 model.py          — AdaRelBot model definition + compute_edge_attr + focal_loss
 train.py          — Training loop, 5-seed protocol, ensemble evaluation
 figures/          — Rendering scripts for paper diagrams
-  render_results.py     → results.svg (baseline comparison bar chart)
-  render_heterophily.py → heterophily.svg (conceptual illustration)
+  render_results.py              → results.svg (baseline comparison bar chart)
+  render_homophily.py            → homophily.svg (homophily concept graph)
+  render_heterophily_graph.py    → heterophily_graph.svg (heterophily concept graph)
+  render_message_passing.py     → message_passing.svg (with vs without edge features)
+  render_training_concepts.py   → training_concepts.svg (focal loss curve + prototype embedding space)
 results/tables/   — CSV output from completed training runs
-src_RGT/          — Reference RGT implementation (baseline)
 ```
 
 ---
