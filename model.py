@@ -19,13 +19,21 @@ def compute_edge_attr(x_des, x_tweet, edge_index, rel_type, batch_size=50000):
 
     return torch.cat([cos_des, cos_tweet, flw], dim=1)
 
-def focal_loss(logits, targets, alpha=None, gamma=2.0):
-    ce = F.cross_entropy(logits, targets, reduction="none")
+def focal_loss(logits, targets, alpha=None, gamma=2.0, smooth=0.0):
+    n_classes = logits.size(-1)
+    if smooth > 0:
+        with torch.no_grad():
+            smooth_targets = torch.full_like(logits, smooth / (n_classes - 1),
+                                             device=logits.device)
+            smooth_targets.scatter_(-1, targets.unsqueeze(-1), 1.0 - smooth)
+        log_probs = F.log_softmax(logits, dim=-1)
+        ce = -(smooth_targets * log_probs).sum(dim=-1)
+    else:
+        ce = F.cross_entropy(logits, targets, reduction="none")
     pt = torch.exp(-ce)
     focal = (1.0 - pt) ** gamma * ce
     if alpha is not None:
         focal = alpha[targets] * focal
-
     return focal.mean()
 
 
@@ -85,11 +93,11 @@ class AdaRelBot(nn.Module):
         ], dim=1)
         return self.enc_proj(x)
 
-    def forward(self, x_des, x_tweet, x_num, x_cat, edge_index, edge_attr):
+    def forward(self, x_des, x_tweet, x_num, x_cat, edge_index, edge_attr, return_heads=False):
         x = self.encode(x_des, x_tweet, x_num, x_cat)
         x_res = x
         x = self.conv1(x, edge_index, edge_attr)
-        x = self.norm1(x + x_res) 
+        x = self.norm1(x + x_res)
         x = F.dropout(x, p=self.dropout_rate, training=self.training)
         x_res = x
         x = self.conv2(x, edge_index, edge_attr)
@@ -100,6 +108,8 @@ class AdaRelBot(nn.Module):
         proto_logits = (x_norm @ proto_norm.T) * self.proto_temp
         gamma = self.gate(x).sigmoid()
         logits = gamma * mlp_logits + (1.0 - gamma) * proto_logits
+        if return_heads:
+            return logits, gamma, mlp_logits, proto_logits
         return logits, gamma
 
     def reset_parameters(self):

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Train AdaRelBot on TwiBot-20.
+"""Train AdaRelBot on Cresci-15.
 
-Config:
-  - Edge-attributed TransformerConv (cos-des, cos-tweet, rel-type)
-  - Prototype + MLP dual-head with learned gate
-  - Focal Loss for class imbalance
+Uses the same model and protocol as train.py (TwiBot-20) so results are
+directly comparable. The only differences are the data directory and graph
+file name.
 """
 
 import os
@@ -24,10 +23,10 @@ from model import AdaRelBot, compute_edge_attr, focal_loss
 
 warnings.filterwarnings("ignore")
 
-DATA_DIR = "data/twibot-20"
-GRAPH_PATH = os.path.join(DATA_DIR, "twibot_graph.pt")
+DATA_DIR = "data/cresci-15"
+GRAPH_PATH = os.path.join(DATA_DIR, "cresci_graph.pt")
 OUTPUT_DIR = "results/tables"
-OUTPUT_CSV = os.path.join(OUTPUT_DIR, "adarel_clean_5seeds.csv")
+OUTPUT_CSV = os.path.join(OUTPUT_DIR, "cresci15_5seeds.csv")
 RESULTS_DIR = "results/metrics"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -44,13 +43,11 @@ AUX_WEIGHT = 0.5
 LABEL_SMOOTHING = 0.1
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-THRESHOLDS = np.round(np.arange(0.1, 1.0, 0.05), 2)
-
-THRESHOLDS = np.round(np.arange(0.1, 1.0, 0.05), 2)
 
 def get_metrics(probs, labels):
     pred_v = torch.argmax(probs, dim=1)
     return (pred_v == labels).float().mean().item()
+
 
 def F1_score(probs, labels):
     pred_v = torch.argmax(probs, dim=1)
@@ -61,6 +58,7 @@ def F1_score(probs, labels):
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     return (2 * (precision * recall) / (precision + recall)).item() if (precision + recall) > 0 else 0.0
 
+
 def MCC_score(probs, labels):
     pred_v = torch.argmax(probs, dim=1)
     tp = (pred_v * labels).sum().float()
@@ -70,6 +68,7 @@ def MCC_score(probs, labels):
     numerator = (tp * tn) - (fp * fn)
     denominator = torch.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
     return (numerator / denominator).item() if denominator > 0 else 0.0
+
 
 def train_one_seed(model, seed):
     torch.manual_seed(seed)
@@ -141,8 +140,9 @@ def train_one_seed(model, seed):
 
     return metrics, probs
 
+
 print("=" * 76)
-print("AdaRelBot (proto+ea+focal)")
+print("AdaRelBot on Cresci-15 (proto+ea+focal)")
 print("=" * 76)
 
 graph = torch.load(GRAPH_PATH, map_location="cpu", weights_only=False)
@@ -169,7 +169,7 @@ val_mask = val_mask.to(DEVICE)
 test_mask = test_mask.to(DEVICE)
 
 edge_index = torch.cat([graph.edge_index_follow, graph.edge_index_following], dim=1).to(DEVICE)
-print(f"  Edges (follow+only): {edge_index.size(1):,}")
+print(f"  Edges (follow+following): {edge_index.size(1):,}")
 
 ea_follow = compute_edge_attr(x_des, x_tweet, graph.edge_index_follow.to(DEVICE), 0)
 ea_following = compute_edge_attr(x_des, x_tweet, graph.edge_index_following.to(DEVICE), 1)
@@ -183,12 +183,8 @@ alpha = torch.tensor([n_humans / (n_humans + n_bots),
                       n_bots / (n_humans + n_bots)], device=DEVICE)
 print(f"  Focal alpha: [{alpha[0].item():.3f}, {alpha[1].item():.3f}]")
 
-y_val_np = y[val_mask].cpu().numpy()
-y_test_np = y[test_mask].cpu().numpy()
-
 print(f"\nTraining ({len(SEEDS)} seeds, {EPOCHS} epochs)")
 print(f"  LR={LR}  WD={WD}  Dropout={DROPOUT}  dim={EMBEDDING_DIM}")
-
 
 all_probs = []
 all_metrics = []
@@ -238,10 +234,19 @@ print(f"\n  Ensemble: Acc={ens_acc:.4f} F1={ens_f1:.4f} Prec={ens_prec:.4f} Rec=
       f"ROC-AUC={ens_roc:.4f} PR-AUC={ens_pr:.4f} MCC={ens_mcc:.4f}")
 
 # Save for plotting
-np.savez(os.path.join(RESULTS_DIR, "twibot20_ensemble.npz"),
+np.savez(os.path.join(RESULTS_DIR, "cresci15_ensemble.npz"),
          probs=ens_test_probs, labels=ens_test_labels,
          acc=ens_acc, f1=ens_f1, prec=ens_prec, rec=ens_rec,
          roc_auc=ens_roc, pr_auc=ens_pr, mcc=ens_mcc)
-np.savez(os.path.join(RESULTS_DIR, "twibot20_all_probs.npz"),
+np.savez(os.path.join(RESULTS_DIR, "cresci15_all_probs.npz"),
          probs=[p[test_mask].cpu().numpy() for p in all_probs],
          labels=ens_test_labels)
+
+# Save per-seed results
+with open(OUTPUT_CSV, "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=["seed", "acc", "f1", "mcc", "prec", "rec", "roc_auc", "pr_auc", "tn", "fp", "fn", "tp"])
+    writer.writeheader()
+    for row in all_metrics:
+        writer.writerow(row)
+
+print(f"\nSaved results to {OUTPUT_CSV}")

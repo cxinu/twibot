@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Unified launcher for AdaRelBot benchmarks.
+
+Usage:
+    ./train                       # train and evaluate on TwiBot-20, then Cresci-15
+    ./train --dataset twibot20    # only TwiBot-20
+    ./train --dataset cresci15    # only Cresci-15
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+
+VENV_PYTHON = ".venv/bin/python3"
+
+
+def run(cmd):
+    print("\n" + "=" * 76)
+    print(f"Running: {' '.join(cmd)}")
+    print("=" * 76)
+    result = subprocess.run(cmd)
+    return result.returncode
+
+
+def ensure_cresci15_data():
+    needed = [
+        "data/cresci-15/des_tensor.pt",
+        "data/cresci-15/tweets_tensor.pt",
+        "data/cresci-15/num_properties_tensor.pt",
+        "data/cresci-15/cat_properties_tensor.pt",
+        "data/cresci-15/cresci_graph.pt",
+    ]
+    if all(os.path.exists(p) for p in needed):
+        return
+    print("Cresci-15 preprocessed data not found. Running preprocessing...")
+    rc = run([VENV_PYTHON, "preprocess_cresci15.py"])
+    if rc != 0:
+        print("Preprocessing failed.", file=sys.stderr)
+        sys.exit(rc)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train AdaRelBot on TwiBot-20 and/or Cresci-15.")
+    parser.add_argument(
+        "--dataset",
+        choices=["twibot20", "cresci15", "both"],
+        default="both",
+        help="Dataset to benchmark. Default: both",
+    )
+    args = parser.parse_args()
+
+    rc = 0
+    if args.dataset in ("twibot20", "both"):
+        rc = run([VENV_PYTHON, "train.py"])
+        if rc != 0:
+            return rc
+    if args.dataset in ("cresci15", "both"):
+        ensure_cresci15_data()
+        rc = run([VENV_PYTHON, "train_cresci15.py"])
+        if rc != 0:
+            return rc
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())
