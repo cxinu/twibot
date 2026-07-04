@@ -1,0 +1,74 @@
+<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" font-family="Times New Roman, Times, serif">
+<rect width="480" height="280" fill="#FFFFFF"/>
+<defs>
+            <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="1.5" dy="1.5" stdDeviation="1.5" flood-opacity="0.12"/>
+            </filter>
+        </defs>
+<line x1="240.0" y1="20" x2="240.0" y2="240" stroke="#ADB5BD" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="80" y1="120" x2="45" y2="90" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="80" y1="120" x2="50" y2="150" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="80" y1="120" x2="110" y2="85" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="80" y1="120" x2="115" y2="145" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="110" y1="85" x2="45" y2="90" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="175" y1="120" x2="145" y2="85" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="175" y1="120" x2="140" y2="145" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="175" y1="120" x2="210" y2="90" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="175" y1="120" x2="205" y2="150" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="205" y1="150" x2="140" y2="145" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="115" y1="145" x2="140" y2="145" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="360" y1="120" x2="398.97114317029974" y2="97.5" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="360" y1="120" x2="398.97114317029974" y2="142.5" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="360" y1="120" x2="360.0" y2="165.0" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="360" y1="120" x2="321.02885682970026" y2="142.5" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="360" y1="120" x2="321.02885682970026" y2="97.5" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="360" y1="120" x2="360.0" y2="75.0" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="398.97114317029974" y1="97.5" x2="360.0" y2="75.0" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="398.97114317029974" y1="142.5" x2="360.0" y2="165.0" stroke="#ADB5BD" stroke-width="1.5"/>
+<line x1="280.0" y1="260" x2="305.0" y2="260" stroke="#FA5252" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="120.0" y="25.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">Homophily (Ideal)</text>
+<circle cx="80" cy="120" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="80" y="120" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="45" cy="90" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="45" y="90" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="50" cy="150" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="50" y="150" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="110" cy="85" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="110" y="85" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="115" cy="145" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="115" y="145" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="175" cy="120" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="175" y="120" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="145" cy="85" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="145" y="85" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="140" cy="145" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="140" y="145" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="210" cy="90" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="210" y="90" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="205" cy="150" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="205" y="150" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<text x="120.0" y="200.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#495057" dominant-baseline="central">Birds of a feather cluster together.</text>
+<text x="120.0" y="218.0" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">Standard GNNs thrive.</text>
+<text x="360.0" y="25.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">Heterophily (Real-World)</text>
+<circle cx="360" cy="120" r="12" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="360" y="120" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="398.97114317029974" cy="97.5" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="398.97114317029974" y="97.5" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="398.97114317029974" cy="142.5" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="398.97114317029974" y="142.5" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="360.0" cy="165.0" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="360.0" y="165.0" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="321.02885682970026" cy="142.5" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="321.02885682970026" y="142.5" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="321.02885682970026" cy="97.5" r="11" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="321.02885682970026" y="97.5" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="360.0" cy="75.0" r="11" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="360.0" y="75.0" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<text x="360.0" y="200.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#495057" dominant-baseline="central">Bots hide by following humans.</text>
+<text x="360.0" y="218.0" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">Standard GNNs get confused.</text>
+<circle cx="150.0" cy="260" r="8" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5"/>
+<text x="165.0" y="260.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#212529" dominant-baseline="central">Human</text>
+<circle cx="220.0" cy="260" r="8" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5"/>
+<text x="235.0" y="260.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#212529" dominant-baseline="central">Bot</text>
+<text x="310.0" y="260.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#212529" dominant-baseline="central">Heterophilous Edge</text>
+</svg>

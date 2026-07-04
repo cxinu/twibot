@@ -1,0 +1,66 @@
+<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg" font-family="Times New Roman, Times, serif">
+<rect width="480" height="280" fill="#FFFFFF"/>
+<defs>
+            <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="1.5" dy="1.5" stdDeviation="1.5" flood-opacity="0.12"/>
+            </filter>
+            <marker id="arrow_dark" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#495057"/>
+            </marker>
+            <marker id="arrow_red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#FA5252"/>
+            </marker>
+            <marker id="arrow_green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#40C057"/>
+            </marker>
+        </defs>
+<line x1="240.0" y1="20" x2="240.0" y2="260" stroke="#DEE2E6" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="59.11107922838356" y1="107.80949648147163" x2="103.29635474796348" y2="145.6825897839687" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow_dark)"/>
+<rect x="63.20371698817351" y="118.74604313272016" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="59.11107922838356" y1="212.19050351852837" x2="103.29635474796348" y2="174.3174102160313" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow_dark)"/>
+<rect x="63.20371698817351" y="185.25395686727984" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="180.88892077161643" y1="107.80949648147163" x2="136.70364525203652" y2="145.6825897839687" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow_dark)"/>
+<rect x="140.79628301182646" y="118.74604313272016" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="180.88892077161643" y1="212.19050351852837" x2="136.70364525203652" y2="174.3174102160313" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow_dark)"/>
+<rect x="140.79628301182646" y="185.25395686727984" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="299.1110792283836" y1="107.80949648147163" x2="343.2963547479635" y2="145.6825897839687" stroke="#FA5252" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow_red)"/>
+<rect x="303.20371698817354" y="118.74604313272016" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="299.1110792283836" y1="212.19050351852837" x2="343.2963547479635" y2="174.3174102160313" stroke="#FA5252" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow_red)"/>
+<rect x="303.20371698817354" y="185.25395686727984" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="420.8889207716164" y1="107.80949648147163" x2="378.22215845676715" y2="144.38100703705675" stroke="#40C057" stroke-width="3.5" marker-end="url(#arrow_green)"/>
+<rect x="381.5555396141918" y="118.09525175926419" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<line x1="420.8889207716164" y1="212.19050351852837" x2="378.22215845676715" y2="175.61899296294325" stroke="#40C057" stroke-width="3.5" marker-end="url(#arrow_green)"/>
+<rect x="381.5555396141918" y="185.9047482407358" width="36" height="16" fill="#FFFFFF" opacity="0.85" rx="3"/>
+<text x="120.0" y="25.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">Without Edge Features</text>
+<text x="120.0" y="42.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#6C757D" dominant-baseline="central">All neighbors treated equally</text>
+<text x="81.20371698817351" y="126.74604313272016" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#495057" dominant-baseline="central">α</text>
+<text x="81.20371698817351" y="193.25395686727984" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#495057" dominant-baseline="central">α</text>
+<text x="158.79628301182646" y="126.74604313272016" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#495057" dominant-baseline="central">α</text>
+<text x="158.79628301182646" y="193.25395686727984" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#495057" dominant-baseline="central">α</text>
+<circle cx="120" cy="160" r="18" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="120" y="160" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">Bot (v)</text>
+<circle cx="50" cy="100" r="12" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="50" y="100" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="50" cy="220" r="12" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="50" y="220" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="190" cy="100" r="12" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="190" y="100" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="190" cy="220" r="12" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="190" y="220" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<text x="360.0" y="25.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#212529" dominant-baseline="central">With Edge Features (AdaRelBot)</text>
+<text x="360.0" y="42.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#6C757D" dominant-baseline="central">Dissimilar edges are attenuated</text>
+<text x="321.20371698817354" y="126.74604313272016" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#FA5252" dominant-baseline="central">cos ≈ 0.1</text>
+<text x="321.20371698817354" y="193.25395686727984" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#FA5252" dominant-baseline="central">cos ≈ 0.1</text>
+<text x="399.5555396141918" y="126.09525175926419" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#40C057" dominant-baseline="central">cos ≈ 0.9</text>
+<text x="399.5555396141918" y="193.9047482407358" font-size="10" font-weight="bold" font-style="normal" text-anchor="middle" fill="#40C057" dominant-baseline="central">cos ≈ 0.9</text>
+<circle cx="360" cy="160" r="18" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="360" y="160" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">Bot (v)</text>
+<circle cx="290" cy="100" r="12" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="290" y="100" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="290" cy="220" r="12" fill="#E7F5FF" stroke="#339AF0" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="290" y="220" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#339AF0">H</text>
+<circle cx="430" cy="100" r="12" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="430" y="100" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+<circle cx="430" cy="220" r="12" fill="#FFF5F5" stroke="#FA5252" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="430" y="220" dy="0.1em" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#FA5252">B</text>
+</svg>

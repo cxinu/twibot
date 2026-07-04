@@ -1,0 +1,97 @@
+<svg viewBox="0 0 1420 520" xmlns="http://www.w3.org/2000/svg" font-family="Times New Roman, Times, serif">
+<rect width="1420" height="520" fill="#FFFFFF"/>
+<defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.6" markerHeight="4.6" orient="auto-start-reverse">
+                <path d="M0,1.2 L8,5 L0,8.8 z" fill="#6B7078"/>
+            </marker>
+            <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.6" markerHeight="4.6" orient="auto-start-reverse">
+                <path d="M0,1.2 L8,5 L0,8.8 z" fill="#1F3A5F"/>
+            </marker>
+        </defs>
+<rect x="10" y="20" width="290" height="480" rx="6" fill="#FAFAFA" stroke="#C7CBD1" stroke-width="1.3" stroke-dasharray="5 4"/>
+<line x1="20" y1="65" x2="290" y2="65" stroke="#C7CBD1" stroke-width="1"/>
+<rect x="310" y="20" width="410" height="480" rx="6" fill="#FAFAFA" stroke="#C7CBD1" stroke-width="1.3" stroke-dasharray="5 4"/>
+<line x1="320" y1="65" x2="710" y2="65" stroke="#C7CBD1" stroke-width="1"/>
+<rect x="730" y="20" width="460" height="480" rx="6" fill="#FAFAFA" stroke="#C7CBD1" stroke-width="1.3" stroke-dasharray="5 4"/>
+<line x1="740" y1="65" x2="1180" y2="65" stroke="#C7CBD1" stroke-width="1"/>
+<rect x="1200" y="20" width="210" height="480" rx="6" fill="#FAFAFA" stroke="#C7CBD1" stroke-width="1.3" stroke-dasharray="5 4"/>
+<line x1="1210" y1="65" x2="1400" y2="65" stroke="#C7CBD1" stroke-width="1"/>
+<path d="M 150 97.5 L 175 97.5 Q 185 97.5 185 107.5 L 185 202.5" fill="none" stroke="#6B7078" stroke-width="1.4"/>
+<path d="M 150 167.5 L 175 167.5 Q 185 167.5 185 177.5 L 185 202.5" fill="none" stroke="#6B7078" stroke-width="1.4"/>
+<path d="M 150 237.5 L 175 237.5 Q 185 237.5 185 227.5 L 185 202.5" fill="none" stroke="#6B7078" stroke-width="1.4"/>
+<path d="M 150 307.5 L 175 307.5 Q 185 307.5 185 297.5 L 185 202.5" fill="none" stroke="#6B7078" stroke-width="1.4"/>
+<line x1="280" y1="202.5" x2="330" y2="202.5" stroke="#1F3A5F" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<line x1="500" y1="235" x2="500" y2="265" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="500" y1="310" x2="500" y2="333" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="500" y1="357" x2="500" y2="380" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="280" y1="430" x2="330" y2="430" stroke="#1F3A5F" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<path d="M 345 202.5 L 345 392.5 Q 345 402.5 355 402.5 L 425 402.5" fill="none" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 670 202.5 L 740 202.5 Q 750 202.5 750 192.5 L 750 145" fill="none" stroke="#6B7078" stroke-width="1.4"/>
+<line x1="750" y1="145" x2="1120" y2="145" stroke="#6B7078" stroke-width="1.4"/>
+<line x1="800" y1="145" x2="800" y2="180" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="960" y1="145" x2="960" y2="180" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="1120" y1="145" x2="1120" y2="180" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="800" y1="245" x2="800" y2="320" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="1120" y1="245" x2="1120" y2="320" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="960" y1="245" x2="960" y2="320" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+<line x1="1180" y1="350" x2="1240" y2="350" stroke="#1F3A5F" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<line x1="1310" y1="235" x2="1310" y2="320" stroke="#6B7078" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="155.0" y="45.0" font-size="13.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Graph Construction &amp; Encoding</text>
+<text x="515.0" y="45.0" font-size="13.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Structural Module</text>
+<text x="960.0" y="45.0" font-size="13.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Dual-Head Classifier</text>
+<text x="1305.0" y="45.0" font-size="13.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Optimization</text>
+<rect x="30" y="77.5" width="120" height="40" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="90" y="90.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Tweets (768-d)</text>
+<text x="90" y="105.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">RoBERTa</text>
+<rect x="30" y="147.5" width="120" height="40" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="90" y="160.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Description (768-d)</text>
+<text x="90" y="175.0" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">RoBERTa</text>
+<rect x="30" y="217.5" width="120" height="40" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="90" y="237.5" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Numeric (5-d)</text>
+<rect x="30" y="287.5" width="120" height="40" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="90" y="307.5" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Categorical (3-d)</text>
+<rect x="185" y="92.5" width="95" height="220" rx="6" fill="#EEF2F7" stroke="#1F3A5F" stroke-width="1.3"/>
+<text x="232.5" y="184.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Concat</text>
+<text x="232.5" y="202.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">&amp;</text>
+<text x="232.5" y="220.5" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Project</text>
+<rect x="30" y="400" width="250" height="55" rx="6" fill="#F1F2F4" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="155" y="418.5" font-size="11.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Edge Features e<tspan baseline-shift="sub" font-size="0.75em">uv</tspan> ∈ ℝ³</text>
+<text x="155" y="436.5" font-size="11.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">(Cosine Similarity + Relation Type)</text>
+<text x="305" y="185.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">h<tspan baseline-shift="sub" font-size="0.75em">v</tspan><tspan baseline-shift="super" font-size="0.75em">(0)</tspan></text>
+<rect x="350" y="82.5" width="340" height="360" rx="6" fill="#F1F2F4" stroke="#4A4F57" stroke-width="1.1"/>
+<rect x="340" y="92.5" width="340" height="360" rx="6" fill="#Fcfcfc" stroke="#4A4F57" stroke-width="1.1"/>
+<rect x="330" y="102.5" width="340" height="360" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="500" y="130.0" font-size="13.5" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">TransformerConv Layer</text>
+<text x="645" y="130.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#5B6068" dominant-baseline="central">× L</text>
+<rect x="360" y="170" width="280" height="65" rx="6" fill="#EEF2F7" stroke="#1F3A5F" stroke-width="1.3"/>
+<text x="500" y="193.5" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Edge-Modulated Attention</text>
+<text x="500" y="211.5" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">α<tspan baseline-shift="sub" font-size="0.75em">uv</tspan> = softmax(W_q h<tspan baseline-shift="sub" font-size="0.75em">u</tspan> · W_k h<tspan baseline-shift="sub" font-size="0.75em">v</tspan> + W_e e<tspan baseline-shift="sub" font-size="0.75em">uv</tspan>)</text>
+<rect x="425" y="265" width="150" height="45" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="500" y="287.5" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Aggregate &amp; Add</text>
+<circle cx="500" cy="345" r="12" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="500" y="343.5" font-size="18" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">+</text>
+<rect x="425" y="380" width="150" height="45" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="500" y="402.5" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Residual + LayerNorm</text>
+<text x="300" y="410.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#1F3A5F" dominant-baseline="central">e<tspan baseline-shift="sub" font-size="0.75em">uv</tspan></text>
+<text x="355" y="385.0" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5B6068" dominant-baseline="central">skip</text>
+<text x="715" y="185.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">h<tspan baseline-shift="sub" font-size="0.75em">v</tspan><tspan baseline-shift="super" font-size="0.75em">(2)</tspan></text>
+<rect x="740" y="180" width="120" height="65" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="800" y="203.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">MLP Head</text>
+<text x="800" y="221.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">z<tspan baseline-shift="sub" font-size="0.75em">mlp</tspan> ∈ ℝ²</text>
+<rect x="900" y="180" width="120" height="65" rx="6" fill="#EEF2F7" stroke="#1F3A5F" stroke-width="1.3"/>
+<text x="960" y="203.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Gate Network</text>
+<text x="960" y="221.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">γ ∈ (0, 1)</text>
+<rect x="1060" y="180" width="120" height="65" rx="6" fill="#FFFFFF" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="1120" y="203.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Prototype Head</text>
+<text x="1120" y="221.5" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">cos(h, C) × τ</text>
+<rect x="740" y="320" width="440" height="60" rx="6" fill="#F1F2F4" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="960" y="341.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Weighted Combination</text>
+<text x="960" y="359.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">z<tspan baseline-shift="sub" font-size="0.75em">v</tspan> = γ · z<tspan baseline-shift="sub" font-size="0.75em">mlp</tspan> + (1 - γ) · z<tspan baseline-shift="sub" font-size="0.75em">proto</tspan></text>
+<text x="1210" y="335.0" font-size="14" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">z<tspan baseline-shift="sub" font-size="0.75em">v</tspan></text>
+<rect x="1240" y="175" width="140" height="60" rx="30" fill="#FFFFFF" stroke="#1F3A5F" stroke-width="1.3"/>
+<text x="1310" y="196.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Bot / Human</text>
+<text x="1310" y="214.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F3A5F" dominant-baseline="central">Prediction</text>
+<rect x="1240" y="320" width="140" height="60" rx="6" fill="#F1F2F4" stroke="#4A4F57" stroke-width="1.3"/>
+<text x="1310" y="341.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">Focal Loss</text>
+<text x="1310" y="359.0" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1A1D21" dominant-baseline="central">ℒ<tspan baseline-shift="sub" font-size="0.75em">focal</tspan></text>
+</svg>
